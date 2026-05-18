@@ -14,6 +14,6 @@
 - [OpenStreetMap] (https://overpass-turbo.eu/) via overpass-turbo (hospital location backup)
 
 ## Supporting Literature/Resources
-
+- To be populated!
 
 Spatial Justice Final Project by Marie Tranova and Kana Tateishi
