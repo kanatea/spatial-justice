@@ -1,4 +1,5 @@
 # Travel Accessibility (Distance/Distribution) of Emergency Care vs. Maternity Care Units
+*Spatial Justice Final Project by Marie Tranova and Kana Tateishi*
 
 ## Overview :)
 - **Geographic Area of Interest:** Czech Republic 
@@ -15,5 +16,3 @@
 
 ## Supporting Literature/Resources
 - To be populated!
-
-Spatial Justice Final Project by Marie Tranova and Kana Tateishi
