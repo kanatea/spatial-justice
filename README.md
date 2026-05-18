@@ -1,7 +1,7 @@
 # Travel Accessibility (Distance/Distribution) of Emergency Care vs. Maternity Care Units
 
 ## Overview :)
-- **Geographic Area of Interest:** Czechia 
+- **Geographic Area of Interest:** Czech Republic 
 - **Spatial Socioeconomic Problem:** Travel accessibility of different types of medical care (emergency care vs maternity care)
 - **Justice Concept:** Unequal distribution of emergency and maternity healthcare between regions
 **Spatial Representation:** Point data of hospitals and maternity care centers and road networks
