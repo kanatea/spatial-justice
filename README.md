@@ -8,6 +8,7 @@ This project aims to compare and examine the differences of 1. where emergency a
 - How long do women have to travel to give birth compared to someone seeking general emergency care? 
 - Who is traveling longer to seek care? Where do they live? 
 - Do they share socioeconomic or demographic characteristics?
+
 Then, we aim to identify areas with service area gaps and seek to provide suggestions of new care center locations and/or roads for better connection.
 
 - **Geographic Area of Interest:** Czech Republic 
