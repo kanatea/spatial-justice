@@ -12,7 +12,7 @@ This project aims to compare and examine the differences of 1. where emergency a
 Then, we aim to identify areas with service area gaps and seek to provide suggestions of new care center locations and/or roads for better connection.
 
 | | |
-| :--- | :--- |
+| ----------- | ----------- |
 | **Geographic Area of Interest:** | Czech Republic |
 | **Spatial Socioeconomic Problem:** | Travel accessibility of two types of medical care (emergency care vs maternity care) according to region (urban vs. rural) and sociodemographic factors. |
 | **Justice Concept:** | Unequal distribution of emergency and maternity healthcare between regions and differences in travel time to seek care at emergency or maternity centers. |
