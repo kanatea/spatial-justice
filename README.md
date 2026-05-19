@@ -12,7 +12,7 @@
 - **Decision Support:** Identify areas that do not have good healthcare distribution and provide suggestions on areas to build new hospitals or maternity care centers AND/OR roads.
 
 ## Data Sources
-- [Geoportal ČÚZK](https://cuzk.gov.cz/) (administrative and cadastral boundaries, road networks) [link 2](https://geoportal.cuzk.gov.cz/mGeoportal/)
+- [Geoportal ČÚZK](https://cuzk.gov.cz/) (administrative and cadastral boundaries, road networks); [Link to portal](https://geoportal.cuzk.gov.cz/mGeoportal/)
 - [Czechia National Registry of Reproductive Care](https://www.nzip.cz/data/1631-narodni-registr-reprodukcniho-zdravi-mapa-poskytovatelu) (point data of maternity care centers)
 - [OpenStreetMap](https://overpass-turbo.eu/) via overpass-turbo (hospital location backup)
 
