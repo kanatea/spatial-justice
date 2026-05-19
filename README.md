@@ -4,10 +4,16 @@
 [UV reference](https://docs.astral.sh/uv/guides/projects/#creating-a-new-project)
 
 ## Overview :)
+This project aims to compare and examine the differences of 1. where emergency and maternity care services are located and 2. the travel accessibility of these hospitals or care centers. Research questions include:
+- How long do women have to travel to give birth compared to someone seeking general emergency care? 
+- Who is traveling longer to seek care? Where do they live? 
+- Do they share socioeconomic or demographic characteristics?
+Then, we aim to identify areas with service area gaps and seek to provide suggestions of new care center locations and/or roads for better connection.
+
 - **Geographic Area of Interest:** Czech Republic 
-- **Spatial Socioeconomic Problem:** Travel accessibility of different types of medical care (emergency care vs maternity care) according to region (urban vs. rural) and sociodemographic factors
-- **Justice Concept:** Unequal distribution of emergency and maternity healthcare between regions
-**Spatial Representation:** Point data of hospitals and maternity care centers and road networks, as well as major cities and regions, in which sociodemographic factors such as population density and economic indicators can be aggregated.
+- **Spatial Socioeconomic Problem:** Travel accessibility of two types of medical care (emergency care vs maternity care) according to region (urban vs. rural) and sociodemographic factors.
+- **Justice Concept:** Unequal distribution of emergency and maternity healthcare between regions and differences in travel time to seek care at emergency or maternity centers.
+**Spatial Representation:** Point data of hospitals and maternity care centers and road networks, as well as major cities, regions, subregions, in which sociodemographic factors such as population density and economic indicators can be aggregated.
 - **Analysis:** Service network analysis, drawing threshold line of what is outside a service area
 - **Decision Support:** Identify areas that do not have good healthcare distribution and provide suggestions on areas to build new hospitals or maternity care centers AND/OR roads.
 
@@ -18,3 +24,4 @@
 
 ## Supporting Literature/Resources
 - To be populated!
+
