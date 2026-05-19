@@ -7,7 +7,7 @@
 - **Geographic Area of Interest:** Czech Republic 
 - **Spatial Socioeconomic Problem:** Travel accessibility of different types of medical care (emergency care vs maternity care) according to region (urban vs. rural) and sociodemographic factors
 - **Justice Concept:** Unequal distribution of emergency and maternity healthcare between regions
-**Spatial Representation:** Point data of hospitals and maternity care centers and road networks
+**Spatial Representation:** Point data of hospitals and maternity care centers and road networks, as well as major cities and regions, in which sociodemographic factors such as population density and economic indicators can be aggregated.
 - **Analysis:** Service network analysis, drawing threshold line of what is outside a service area
 - **Decision Support:** Identify areas that do not have good healthcare distribution and provide suggestions on areas to build new hospitals or maternity care centers AND/OR roads.
 
