@@ -16,3 +16,5 @@
 
 ## Supporting Literature/Resources
 - To be populated!
+
+[UV reference](https://docs.astral.sh/uv/guides/projects/#creating-a-new-project)
