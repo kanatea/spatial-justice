@@ -6,7 +6,8 @@
 ## Overview :)
 This project aims to compare and examine the differences of 1. where emergency and maternity care services are located and 2. the travel accessibility of these hospitals or care centers. Research questions include:
 - How long do women have to travel to give birth compared to someone seeking general emergency care? 
-- Who is traveling longer to seek care? Where do they live? 
+- Who is traveling longer to seek care? 
+- Where do they live? 
 - Do they share socioeconomic or demographic characteristics?
 
 Then, we aim to identify areas with service area gaps and seek to provide suggestions of new care center locations and/or roads for better connection.
@@ -24,6 +25,7 @@ Then, we aim to identify areas with service area gaps and seek to provide sugges
 - [Geoportal ČÚZK](https://cuzk.gov.cz/) (administrative and cadastral boundaries, road networks); [Link to portal](https://geoportal.cuzk.gov.cz/mGeoportal/)
 - [Czechia National Registry of Reproductive Care](https://www.nzip.cz/data/1631-narodni-registr-reprodukcniho-zdravi-mapa-poskytovatelu) (point data of maternity care centers)
 - [OpenStreetMap](https://overpass-turbo.eu/) via overpass-turbo (road networks, regional boundaries, hospital location backup)
+- More to come
 
 ## Supporting Literature/Resources
 - Identify thresholds of acceptable travel time for emergency care (e.g., EU standard of emergency care response time)
