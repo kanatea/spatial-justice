@@ -36,7 +36,7 @@ Data Preprocessing --> Clustering --> Accessibility Index
 2. For clustering, a multivariate clustering method will be conducted based on relevant sociodemographic and land use cover, such as area size, population density, average age, natality rate, % women in fertile age, and % residential area within a given district.
     - Expecting 3-5 clusters of administrative districts 
 3. Assess accessibility to emergency and maternity care centers within clusters 
-    - Valhalla is a routing agent that calculates the distances between two points; in this case, we will calculate the distance between the centroids of the districts to the nearest healthcare center, with distinction between emergency care and maternity care. 
+    - [Valhalla](https://github.com/valhalla/valhalla) is a routing agent that calculates the distances between two points; in this case, we will calculate the distance between the centroids of the districts to the nearest healthcare center, with distinction between emergency care and maternity care. 
 
 
 ## Supporting Literature/Resources
