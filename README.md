@@ -25,7 +25,7 @@ Based on literature, we will find acceptable travel thresholds and assess access
 - [Geoportal ČÚZK](https://cuzk.gov.cz/) (administrative and cadastral boundaries, road networks); [Link to portal](https://geoportal.cuzk.gov.cz/mGeoportal/)
 - [Czechia National Registry of Reproductive Care](https://www.nzip.cz/data/1631-narodni-registr-reprodukcniho-zdravi-mapa-poskytovatelu) (point data of maternity care centers)
 - [OpenStreetMap](https://overpass-turbo.eu/) via overpass-turbo (road networks, regional boundaries, hospital location backup)
-- [2021 Czech Census](https://csu.gov.cz/2021-census?pocet=10&start=0&podskupiny=171&razeni=-datumVydani)
+- [Czech Statistical Office](https://csu.gov.cz/2021-census?pocet=10&start=0&podskupiny=171&razeni=-datumVydani) for 2021 Census
 - More to come
 
 ## Proposed Method
