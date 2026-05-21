@@ -4,13 +4,13 @@
 [UV reference](https://docs.astral.sh/uv/guides/projects/#creating-a-new-project)
 
 ## Overview :)
-This project aims to compare and examine the differences of the travel accessibility of emergency care and maternity care services. Research questions include:
+This project aims to compare and examine the differences of the travel accessibility of emergency care and maternity care services. Potential research questions include:
 - How long do women have to travel to give birth compared to someone seeking general emergency care? 
 - Who is traveling longer to seek care? 
 - Where do they live? 
 - Do they share socioeconomic or demographic characteristics?
 
-Then, we aim to identify areas with service area gaps and seek to provide suggestions of new care center locations and/or roads for better connection.
+Based on literature, we will find acceptable travel thresholds and assess accessibility. We aim to identify areas with service area gaps and seek to provide suggestions of new care center locations and/or roads for better connection.
 
 | | |
 | ----------- | ----------- |
@@ -31,11 +31,11 @@ Then, we aim to identify areas with service area gaps and seek to provide sugges
 Data Preprocessing --> Clustering --> Accessibility Index
 
 1. Data preprocessing includes combining datasets of health center points, understanding additional qualifying maternity care center data, and consolidating relevant sociodemographic data for clustering.
-- What kind of services are included in maternity care?
+    - What kind of services are included in maternity care?
 2. For clustering, a multivariate clustering method will be conducted based on relevant sociodemographic and land use cover, such as area size, population density, average age, natality rate, % women in fertile age, and % residential area within a given district.
-- Expecting 3-5 clusters of administrative districts 
+    - Expecting 3-5 clusters of administrative districts 
 3. Assess accessibility to emergency and maternity care centers within clusters 
-- Valhalla is a routing agent that calculates the distances between two points; in this case, we will calculate the distance between the centroids of the districts to the nearest healthcare center, with distinction between emergency care and maternity care. 
+    - Valhalla is a routing agent that calculates the distances between two points; in this case, we will calculate the distance between the centroids of the districts to the nearest healthcare center, with distinction between emergency care and maternity care. 
 
 
 ## Supporting Literature/Resources
