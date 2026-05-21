@@ -15,7 +15,7 @@ Based on literature, we will find acceptable travel thresholds and assess access
 | | |
 | ----------- | ----------- |
 | **Geographic Area of Interest:** | Czech Republic |
-| **Spatial Socioeconomic Problem:** | Travel accessibility of two types of medical care (emergency care vs maternity care) according to region (urban vs. rural) and sociodemographic factors. |
+| **Spatial Socioeconomic Problem:** | Travel accessibility of two types of medical care (emergency care vs maternity care) according to region and sociodemographic factors; examining inaccessibility on a regional scale and an individual health accessibility scale. |
 | **Justice Concept:** | Unequal distribution of emergency and maternity healthcare between regions and differences in travel time to seek care at emergency or maternity centers. |
 | **Spatial Representation:** | Point data of hospitals and maternity care centers and road networks, as well as major cities, regions, subregions, in which sociodemographic factors such as population density and economic indicators can be aggregated. |
 | **Analysis:** | Service network analysis, drawing threshold line of what is outside a service area. |
