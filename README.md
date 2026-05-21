@@ -4,7 +4,7 @@
 [UV reference](https://docs.astral.sh/uv/guides/projects/#creating-a-new-project)
 
 ## Overview :)
-This project aims to compare and examine the differences of 1. where emergency and maternity care services are located and 2. the travel accessibility of these hospitals or care centers. Research questions include:
+This project aims to compare and examine the differences of the travel accessibility of emergency care and maternity care services. Research questions include:
 - How long do women have to travel to give birth compared to someone seeking general emergency care? 
 - Who is traveling longer to seek care? 
 - Where do they live? 
