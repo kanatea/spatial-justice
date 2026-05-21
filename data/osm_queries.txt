@@ -1,0 +1,117 @@
+
+ADMINISTRATIVE BOUNDARIES
+
+[out:json][timeout:120];
+
+// 1. Get the area of Czechia
+{{geocodeArea:Czechia}}->.searchArea;
+
+// 2. Find all admin boundaries of level 4 and 6
+// BUT, we use the 'is_in' filter to ensure they are contained within the searchArea
+// and not just touching the border.
+relation["boundary"="administrative"]["admin_level"~"4|6"](area.searchArea);
+
+// 3. This is the "Magic" step: 
+// We filter the results to only keep relations that are actually INSIDE the Czech Republic area.
+// This removes the German regions that only touch the border.
+(
+  relation["boundary"="administrative"]["admin_level"~"4|6"](area.searchArea);
+);
+
+// To be absolutely sure, we can use the 'is_in' logic by filtering the output
+out geom;
+
+
+
+-----
+
+
+
+
+HOSPITALS
+
+[out:json][timeout:90];
+{{geocodeArea:Czechia}}->.searchArea;
+
+(
+  // This finds everything tagged as a hospital
+  nwr["amenity"="hospital"](area.searchArea);
+);
+
+// Output the results
+out body;
+>;
+out skel qt;
+
+
+
+-----
+
+
+
+HOSPITALS + CLINICS
+
+[out:json][timeout:180];
+{{geocodeArea:Czechia}}->.searchArea;
+
+(
+  nwr["amenity"="hospital"](area.searchArea);
+  nwr["amenity"="clinic"](area.searchArea);
+);
+
+out body;
+>;
+out skel qt;
+
+
+
+-----
+
+
+
+HOSPITALS + EMERGENCY SERVICES
+
+[out:json][timeout:180];
+{{geocodeArea:Czechia}}->.searchArea;
+
+(
+  // 1. Find anything explicitly tagged as an emergency facility
+  nwr["amenity"="hospital"](area.searchArea);
+  nwr["emergency"="yes"](area.searchArea);
+  nwr["emergency"="doctor"](area.searchArea);
+  
+  // 2. Find hospitals or clinics that have "urgent" or "emergency" in the name
+  // "urgentní" = urgent/emergency in Czech
+  nwr["amenity"~"hospital|clinic"]["name"~"urgentní|pohotovost",i](area.searchArea);
+);
+
+out body;
+>;
+out skel qt;
+
+
+
+------
+
+
+HOSPITALS + MATERNITY
+reprodukční
+
+[out:json][timeout:120];
+{{geocodeArea:Czechia}}->.searchArea;
+
+(
+  nwr["amenity"="hospital"](area.searchArea);
+  nwr["healthcare"="maternity"](area.searchArea);
+  nwr["amenity"="clinic"]["name"~"porodnice|gynekologie",i](area.searchArea);
+);
+
+out body;
+>;
+out skel qt;
+
+
+
+-----
+
+
