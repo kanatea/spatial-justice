@@ -27,6 +27,17 @@ Then, we aim to identify areas with service area gaps and seek to provide sugges
 - [OpenStreetMap](https://overpass-turbo.eu/) via overpass-turbo (road networks, regional boundaries, hospital location backup)
 - More to come
 
+## Proposed Method
+Data Preprocessing --> Clustering --> Accessibility Index
+
+1. Data preprocessing includes combining datasets of health center points, understanding additional qualifying maternity care center data, and consolidating relevant sociodemographic data for clustering.
+- What kind of services are included in maternity care?
+2. For clustering, a multivariate clustering method will be conducted based on relevant sociodemographic and land use cover, such as area size, population density, average age, natality rate, % women in fertile age, and % residential area within a given district.
+- Expecting 3-5 clusters of administrative districts 
+3. Assess accessibility to emergency and maternity care centers within clusters 
+- Valhalla is a routing agent that calculates the distances between two points; in this case, we will calculate the distance between the centroids of the districts to the nearest healthcare center, with distinction between emergency care and maternity care. 
+
+
 ## Supporting Literature/Resources
 - Identify thresholds of acceptable travel time for emergency care (e.g., EU standard of emergency care response time)
 - Maternity care deserts, rural access to healthcare literature
