@@ -7,13 +7,9 @@ ADMINISTRATIVE BOUNDARIES
 {{geocodeArea:Czechia}}->.searchArea;
 
 // 2. Find all admin boundaries of level 4 and 6
-// BUT, we use the 'is_in' filter to ensure they are contained within the searchArea
-// and not just touching the border.
 relation["boundary"="administrative"]["admin_level"~"4|6"](area.searchArea);
 
-// 3. This is the "Magic" step: 
-// We filter the results to only keep relations that are actually INSIDE the Czech Republic area.
-// This removes the German regions that only touch the border.
+// 3. Filter the results to only keep relations that are actually INSIDE the Czech Republic area.
 (
   relation["boundary"="administrative"]["admin_level"~"4|6"](area.searchArea);
 );
