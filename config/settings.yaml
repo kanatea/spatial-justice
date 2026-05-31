@@ -1,0 +1,17 @@
+# Data paths
+#paths:
+#  census_raw: "data/raw/census_data.csv" PLACEHOLDER
+#  boundaries: "data/raw/districts.geojson"
+#  hospitals: "data/raw/hospital.geojson"
+#  maternity: "data/raw/maternity_points.geojson"
+#  output_final: "data/final/results.csv" ?????????????
+
+# Clustering Parameters
+#clustering:
+#  n_clusters: 5 PLACEHOLDER NUMBER
+#  random_state: 42 PLACEHOLDER NUMBER
+
+# Valhalla Settings
+#valhalla:
+#  url: "http://localhost:8002"
+#  costing: "auto"
