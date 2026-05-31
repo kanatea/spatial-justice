@@ -10,11 +10,17 @@ dependencies = [
     "libpysal>=4.14.1",
     "matplotlib>=3.10.9",
     "pandas>=3.0.2",
+    "pyyaml>=6.0.3",
     "splot>=1.1.7",
+    "NumPy",
+    "SciPy",
+    "scikit-learn",
+    "joblib",
+    "threadpoolctl",
 ]
 
 [project.scripts]
-health_access = "health_access.main:main"
+health_access = "health_access.__main__:main"
 
 [build-system]
 requires = ["hatchling"]

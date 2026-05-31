@@ -10,6 +10,7 @@
 #clustering:
 #  n_clusters: 5 PLACEHOLDER NUMBER
 #  random_state: 42 PLACEHOLDER NUMBER
+#  features: ['total_pop', 'pop_women', 'pop_men', 'fertile_age_women'] PLACEHOLDERS
 
 # Valhalla Settings
 #valhalla:
