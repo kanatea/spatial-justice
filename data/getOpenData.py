@@ -2,7 +2,7 @@
 NRPZS Hospital Pipeline - Czech Republic
 ==========================================
 Produces two clean GeoJSON files for spatial analysis:
-
+¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
   1. emergency_care.geojson   - all facilities that receive ambulances / provide emergency care
   2. maternity_care.geojson   - all facilities where you go to give birth
 
