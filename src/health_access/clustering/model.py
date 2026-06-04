@@ -11,10 +11,13 @@ def apply_clustering(df, config):
     features = config['clustering']['features']
     X = df[features]
 
+# UNDERSTAND THIS AND SCALE IT
     # 2. Scale the data
     # We keep the scaler inside the function or return it if needed for future data
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
+
+    # X_scaled = X.values # Use the original values since they are already standardized
 
     # 3. Initialize and fit the model using config values
     kmeans = KMeans(
