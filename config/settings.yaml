@@ -7,10 +7,20 @@
 #  output_final: "data/final/results.csv" ?????????????
 
 # Clustering Parameters
-#clustering:
-#  n_clusters: 5 PLACEHOLDER NUMBER
-#  random_state: 42 PLACEHOLDER NUMBER
-#  features: ['total_pop', 'pop_women', 'pop_men', 'fertile_age_women'] PLACEHOLDERS
+clustering:
+  n_clusters: 5
+  random_state: 42
+
+  features:
+    - Z_POP_DENS
+    - Z_PCT_WOMEN
+    - Z_PCT_CHILD
+    - Z_PCT_ELDERLY
+    - Z_AGEING_INDEX
+    - Z_DEPENDENCY
+    - Z_MIRA_NEZAM #unemployment rate
+    - Z_NATURAL_INC_RATE
+    - Z_MIG_BAL_RATE
 
 # Valhalla Settings
 #valhalla:
