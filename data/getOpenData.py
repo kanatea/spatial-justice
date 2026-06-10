@@ -74,7 +74,7 @@ OUTPUT_DIR = Path(__file__).parent
 # ======================================
 
 
-# --- Step 1: Load CSV ---
+# Step 1: Load CSV with robust encoding handling and print messages about progress
 
 def load_csv(path: Path) -> pd.DataFrame:
     if not path.exists():
@@ -92,7 +92,7 @@ def load_csv(path: Path) -> pd.DataFrame:
     raise RuntimeError("Could not decode CSV.") # if all encodings fail, raise an error
 
 
-# --- Step 2: Parse GPS ---
+# Step 2: Parse GPS
 
 def parse_gps(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -113,7 +113,7 @@ def parse_gps(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# --- Step 3: Build GeoDataFrame with clean columns ---
+# Step 3: Build GeoDataFrame with clean columns
 
 def make_gdf(df: pd.DataFrame) -> gpd.GeoDataFrame:
     """Drop rows with no GPS, select readable columns, build Point geometry."""
@@ -136,14 +136,15 @@ def make_gdf(df: pd.DataFrame) -> gpd.GeoDataFrame:
         "latitude":              "latitude",
         "longitude":             "longitude",
     }
-    available = {k: v for k, v in keep.items() if k in df.columns}
-    df = df[list(available.keys())].rename(columns=available)
+    available = {k: v for k, v in keep.items() if k in df.columns} # only keep columns that are actually in the CSV, in case of changes to the source data
+    df = df[list(available.keys())].rename(columns=available) # select and rename columns
 
+# Build geometry column from longitude and latitude (the order: Point(lon, lat))
     geometry = [Point(lon, lat) for lon, lat in zip(df["longitude"], df["latitude"])]
     return gpd.GeoDataFrame(df, geometry=geometry, crs="EPSG:4326")
 
 
-# --- Step 4: Emergency care filters ---
+# Step 4: Emergency care filters
 
 def build_emergency(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
