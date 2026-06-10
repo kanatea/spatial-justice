@@ -2,35 +2,35 @@
 NRPZS Hospital Pipeline - Czech Republic
 ==========================================
 Produces two clean GeoJSON files for spatial analysis:
-¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨
-  1. emergency_care.geojson   - all facilities that receive ambulances / provide emergency care
-  2. maternity_care.geojson   - all facilities where you go to give birth
+-----------------
+  1. emergency_care.geojson - all facilities that receive ambulances / provide emergency care
+  2. maternity_care.geojson - all facilities where you go to give birth
 
 Each feature has a "level" field (1 / 2 / 3) that lets you filter by
 how comprehensive the care is. See the LEVELS section below for details.
 
-Source:  nrpzs.uzis.cz  →  Otevřená data  (UZIS CR, CC BY 4.0)
-Data:    place nrpzs_raw.csv in the same folder as this script
-Run:     uv run --with pandas --with geopandas getOpenData.py
+Source: nrpzs.uzis.cz  →  Open data  (UZIS CR, CC BY 4.0)
+Data:   place nrpzs_raw.csv in the same folder as this script
+Run:    uv run --with pandas --with geopandas getOpenData.py
 """
 
-import re # for parsing GPS from WKT format
+import re # for parsing/analazying GPS from WKT format
 from pathlib import Path # for file paths
 import pandas as pd # for CSV loading and DataFrame manipulation
 import geopandas as gpd # for GeoDataFrame and spatial data handling
 from shapely.geometry import Point # for creating Point geometries from lat/lon
 
 
-# ── Configuration ──────────────
+# --- Configuration ---
 
 CSV_PATH   = Path(__file__).parent / "nrpzs_raw.csv"
 OUTPUT_DIR = Path(__file__).parent
 
 
-# ════════════════════════════════════════════
+# ======================
 #  LEVELS EXPLAINED
-# ════════════════════════════════════════════
-#  EMERGENCY CARE  (where you go if you need an ambulance)
+# ======================
+#  EMERGENCY CARE = where you go if you need an ambulance or urgent care
 #  ─────────────────────────────────────────────────────
 #  Level 1 – FULL EMERGENCY DEPARTMENT (urgentní příjem)
 #             Facility type: Nemocnice or Fakultní nemocnice
@@ -53,7 +53,7 @@ OUTPUT_DIR = Path(__file__).parent
 #             ~296 stations + 24 výjezdové skupiny (sub-stations).
 #
 #
-#  MATERNITY CARE  (where you go to give birth)
+#  MATERNITY CARE = where you go to give birth
 #  ─────────────────────────────────────────────
 #  Level 1 – HOSPITAL-BASED MATERNITY WARD (porodnice)
 #             Facility type: Nemocnice or Fakultní nemocnice
@@ -71,34 +71,34 @@ OUTPUT_DIR = Path(__file__).parent
 #             Useful for antenatal care / access analysis.
 #             ~1627 practices.
 #
-# ═══════════════════════════════════════════════
+# ======================================
 
 
-# ── Step 1: Load CSV ───────────────────────────
+# --- Step 1: Load CSV ---
 
 def load_csv(path: Path) -> pd.DataFrame:
     if not path.exists():
         raise FileNotFoundError(
             f"File not found: {path}\n"
-            "Download from nrpzs.uzis.cz → Otevřená data and save as nrpzs_raw.csv"
+            "Download from nrpzs.uzis.cz → Otevřená data (open data) and save as nrpzs_raw.csv"
         )
-    for enc in ["utf-8-sig", "utf-8", "cp1250"]:
+    for enc in ["utf-8-sig", "utf-8", "cp1250"]: # try common encodings for Czech data, starting with UTF-8 with BOM
         try:
             df = pd.read_csv(path, sep=",", encoding=enc, low_memory=False)
-            print(f"Loaded {len(df):,} rows  (encoding: {enc})")
+            print(f"Loaded {len(df):,} rows  (encoding: {enc})") # print number of rows and encoding used
             return df
         except UnicodeDecodeError:
             continue
-    raise RuntimeError("Could not decode CSV.")
+    raise RuntimeError("Could not decode CSV.") # if all encodings fail, raise an error
 
 
-# ── Step 2: Parse GPS ─────────────────────────
+# --- Step 2: Parse GPS ---
 
 def parse_gps(df: pd.DataFrame) -> pd.DataFrame:
     """
     ZZ_GPS column format: POINT(latitude longitude)
-    Note: NRPZS stores lat first, lon second - opposite of GeoJSON convention.
-    We convert to standard lon/lat for the Point geometry.
+    ---> NRPZS stores lat first, lon second - opposite of GeoJSON convention.
+    We need to convert to standard lon/lat for the Point geometry.
     """
     def extract(val):
         if pd.isna(val):
@@ -113,7 +113,7 @@ def parse_gps(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# ── Step 3: Build GeoDataFrame with clean columns ─────────────────────────────
+# --- Step 3: Build GeoDataFrame with clean columns ---
 
 def make_gdf(df: pd.DataFrame) -> gpd.GeoDataFrame:
     """Drop rows with no GPS, select readable columns, build Point geometry."""
@@ -143,7 +143,7 @@ def make_gdf(df: pd.DataFrame) -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(df, geometry=geometry, crs="EPSG:4326")
 
 
-# ── Step 4: Emergency care filters ────────────────────────────────────────────
+# --- Step 4: Emergency care filters ---
 
 def build_emergency(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
@@ -159,7 +159,7 @@ def build_emergency(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     forma       = gdf["care_form"].fillna("")
     ftype       = gdf["facility_type"].fillna("")
 
-    # Level 1: hospitals with urgentní medicína specialty
+    # Level 1: hospitals with urgent medicine specialty
     mask_l1 = ftype.isin(hosp_types) & obor.str.contains("urgentní medicína", case=False, na=False)
 
     # Level 2: hospitals with ICU-level acute inpatient care, but NOT level 1
@@ -180,11 +180,11 @@ def build_emergency(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
     combined["level_label"] = combined["level"].map({
         1: "Emergency department (urgentní medicína)",
-        2: "Acute hospital – ICU-level, no dedicated ED",
+        2: "Acute hospital - ICU-level, no dedicated ED",
         3: "Ambulance dispatch station (ZZS)",
     })
 
-    print(f"\nEmergency care:")
+    print(f"\nEmergency care:") # print summary of how many facilities at each level, with labels
     for lvl in [1, 2, 3]:
         n = (combined["level"] == lvl).sum()
         print(f"  Level {lvl}: {n:>4}  {combined[combined['level']==lvl]['level_label'].iloc[0]}")
@@ -193,7 +193,7 @@ def build_emergency(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return combined.sort_values("level").reset_index(drop=True)
 
 
-# ── Step 5: Maternity care filters ──────────────────
+# --- Step 5: Maternity care filters ---
 
 def build_maternity(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
@@ -224,12 +224,14 @@ def build_maternity(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     # Level 3: standalone gynaecology outpatient practice (prenatal care, not births)
     mask_l3 = ftype == "Samostatná ordinace PL - gynekologa"
 
+# Combine and assign levels
     combined = gdf[mask_l1 | mask_l2 | mask_l3].copy()
     combined["level"] = 0
     combined.loc[mask_l1[combined.index], "level"] = 1
     combined.loc[mask_l2[combined.index], "level"] = 2
     combined.loc[mask_l3[combined.index], "level"] = 3
 
+# Map level to human-readable labels for summary printing
     combined["level_label"] = combined["level"].map({
         1: "Hospital maternity ward + neonatology (perinatal centre)",
         2: "Hospital maternity ward only (standard porodnice)",
@@ -245,15 +247,15 @@ def build_maternity(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return combined.sort_values("level").reset_index(drop=True)
 
 
-# ── Step 6: Save ───────────────────────────
+# --- Step 6: Save ---
 
-def save(gdf: gpd.GeoDataFrame, name: str, output_dir: Path) -> None:
-    path = output_dir / f"{name}.geojson"
+def save(gdf: gpd.GeoDataFrame, name: str, output_dir: Path) -> None: # save GeoDataFrame to GeoJSON with a given name in the output directory
+    path = output_dir / f"{name}.geojson" # build the output path by combining the output directory and the name with .geojson extension
     gdf.to_file(path, driver="GeoJSON")
     print(f"  Saved → {path.name}  ({len(gdf)} features)")
 
 
-# ── Main ───────────────────────────────────
+# --- Main ---
 if __name__ == "__main__":
     print("=== NRPZS Pipeline ===\n")
 

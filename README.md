@@ -1,5 +1,5 @@
 # Travel Accessibility (Distance/Distribution) of Emergency Care vs. Maternity Care Units
-*Spatial Justice Final Project by Marie Tranova and Kana Tateishi*
+*Spatial Justice Final Project by Marie Tranov and Kana Tateishi*
 
 [UV reference](https://docs.astral.sh/uv/guides/projects/#creating-a-new-project)
 
@@ -23,7 +23,7 @@ Based on literature, we will find acceptable travel thresholds and assess access
 
 ## Data Sources
 - [Geoportal ČÚZK](https://cuzk.gov.cz/) (administrative and cadastral boundaries, road networks); [Link to portal](https://geoportal.cuzk.gov.cz/mGeoportal/)
-- [Czechia National Registry of Reproductive Care](https://www.nzip.cz/data/1631-narodni-registr-reprodukcniho-zdravi-mapa-poskytovatelu) (point data of maternity care centers)
+- [National Registry of Healthcare Providers](https://nrpzs.uzis.cz/) (csv file of all healtcare providers)
 - [OpenStreetMap](https://overpass-turbo.eu/) via overpass-turbo (road networks, regional boundaries, hospital location backup)
 - [Czech Statistical Office](https://csu.gov.cz/2021-census?pocet=10&start=0&podskupiny=171&razeni=-datumVydani) for 2021 Census
 - More to come
