@@ -31,7 +31,7 @@ Based on literature, we will find acceptable travel thresholds and assess access
 ## Proposed Method
 Data Preprocessing --> Clustering --> Accessibility Index
 
-1. Data preprocessing includes combining datasets of health center points, understanding additional qualifying maternity care center data, and consolidating relevant sociodemographic data for clustering.
+1. Data preprocessing includes filtering emergency care (build_emergency). It scans the specialties and care_form columns in the csv to classify every facility into one of three levels: hospitals with a formal emergency department (urgentní medicína), hospitals with ICU-level acute care but no dedicated ED, and ambulance dispatch stations (ZZS). Everything else is discarded.
     - What kind of services are included in maternity care?
 2. For clustering, a multivariate clustering method will be conducted based on relevant sociodemographic and land use cover, such as area size, population density, average age, natality rate, % women in fertile age, and % residential area within a given district.
     - Expecting 3-5 clusters of administrative districts 
