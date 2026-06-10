@@ -8,6 +8,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Function to transform projections 
 def transform_projections(raw, transformed, target_epsg=5514):
     """
     Reads all geojson files in the raw data folder, transforms them to target_epsg,
@@ -60,4 +61,5 @@ if __name__ == "__main__":
     OUTPUT_DIR = project_root / "transformed"
     TARGET_EPSG = 5514
 
+    # transform projections for all files in the raw data folder and save to the transformed folder
     transform_projections(str(INPUT_DIR), str(OUTPUT_DIR), TARGET_EPSG)
