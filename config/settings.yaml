@@ -17,15 +17,15 @@ clustering:
   random_state: 42
 
   features:
-    - 'POP_DENS' 
-    - 'PCT_WOMEN'
-    - 'PCT_CHILD'
-    - 'PCT_WORKING'
-    - 'PCT_ELDERLY'
-    - 'AGEING_INDEX'
-    - 'DEPENDENCY'
-    - 'NATURAL_INC_RATE'
-    - 'MIG_BAL_RATE'
+    - 'POP_DENS' #population density
+    - 'PCT_WOMEN' #percent women
+    - 'PCT_CHILD' #percent children
+    - 'PCT_WORKING' #percent working population
+    - 'PCT_ELDERLY' #percent over 64
+    - 'AGEING_INDEX' #percent over 64 / under 14
+    - 'DEPENDENCY' #percent over 65 and under 14 / 15-64
+    - 'NATURAL_INC_RATE' # rate born - deaths
+    - 'MIG_BAL_RATE' #rate difference between immigrating inside vs those leaving
 
 visualization:
   output_filename: "cluster_map.png"
