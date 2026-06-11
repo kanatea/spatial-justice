@@ -34,11 +34,23 @@ Data Preprocessing --> Clustering --> Accessibility Index
 1. Data preprocessing includes filtering emergency care (build_emergency). It scans the specialties and care_form columns in the csv to classify every facility into one of three levels: hospitals with a formal emergency department (urgentní medicína), hospitals with ICU-level acute care but no dedicated ED, and ambulance dispatch stations (ZZS). Everything else is discarded.
     - What kind of services are included in maternity care?
 2. For clustering, a multivariate clustering method will be conducted based on relevant sociodemographic and land use cover, such as area size, population density, average age, natality rate, % women in fertile age, and % residential area within a given district.
-    - Expecting 3-5 clusters of administrative districts 
-    - We will use the scikit-learn module to conduct k-means clustering. Github repository [here](https://github.com/scikit-learn/scikit-learn/tree/fe2edb3cdbd75ae4e662fda67dcb19277258792b) and documentation [here](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html#sklearn.cluster.KMeans)
+    - Expecting 3-5 clusters of administrative districts. 
+    - We will use the [scikit-learn module](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html#sklearn.cluster.KMeans) to conduct k-means clustering. Github repository [here](https://github.com/scikit-learn/scikit-learn/tree/fe2edb3cdbd75ae4e662fda67dcb19277258792b).
 
 3. Assess accessibility to emergency and maternity care centers within clusters 
     - [Valhalla](https://github.com/valhalla/valhalla) is a routing agent that calculates the distances between two points; in this case, we will calculate the distance between the centroids of the districts to the nearest healthcare center, with distinction between emergency care and maternity care. 
+
+## To Run
+Please reference pyproject.toml for requirements and dependencies. Configuration file can be found in the config folder and default settings can be changed there. 
+
+uv run health_access to run the project. 
+
+| | |
+| Options | ----------- |
+| -h, --help | show this help message and exit |
+| --skip-transform | Skip projection transformation (use already transformed data). |
+| --skip-clustering | Skip clustering step. |
+| --n-clusters INSERT NUMBER | Number of clusters; overrides the configuration default of 5 clusters |
 
 
 ## Supporting Literature/Resources
