@@ -5,6 +5,7 @@ import yaml
 import argparse
 import argparse
 from pathlib import Path
+
 from health_access.preprocessing.transform import transform_projections
 from health_access.preprocessing.standardize import standardize_data
 from health_access.clustering.model import apply_clustering
@@ -76,7 +77,7 @@ def main():
 
     logger.info("Data preprocessing complete!")
 
-    # CLUSTERING - We only run this if the file was successfully created in the prior step, and if the user didn't specify to skip clustering
+    # 2. CLUSTERING - We only run this if the file was successfully created in the prior step, and if the user didn't specify to skip clustering
     if not args.skip_clustering:
         if census_output.exists():
             logger.info("Starting Clustering...")
@@ -90,7 +91,7 @@ def main():
         else:
             logger.error("Variables file missing. Skipping clustering.")
 
-    # VISUALIZATION
+    # CLUSTERING CONT - VISUALIZATION
         logger.info("Generating cluster map...")
         saved_map_path = create_cluster_map(gdf_clustered, config, project_root)
         logger.info(f"Visualization saved to: {saved_map_path}")
