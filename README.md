@@ -45,8 +45,8 @@ Please reference pyproject.toml for requirements and dependencies. Configuration
 
 uv run health_access to run the project. 
 
-| | |
-| Options | ----------- |
+| Options | |
+| ----------- | ----------- |
 | -h, --help | show this help message and exit |
 | --skip-transform | Skip projection transformation (use already transformed data). |
 | --skip-clustering | Skip clustering step. |
