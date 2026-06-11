@@ -14,12 +14,13 @@ Based on literature, we will find acceptable travel thresholds and assess access
 
 | | |
 | ----------- | ----------- |
-| **Geographic Area of Interest:** | Czech Republic (Administrative district of a municipality with expanded jurisdiction) |
+| **Geographic Area of Interest:** | Czech Republic ORPs (Obec s rozšířenou působností - Municipality with extended jurisdiction) |
 | **Spatial Socioeconomic Problem:** | Travel accessibility of two types of medical care (emergency care vs maternity care) according to region and sociodemographic factors; examining inaccessibility on a regional scale and an individual health accessibility scale. |
 | **Justice Concept:** | Unequal distribution of emergency and maternity healthcare between regions and differences in travel time to seek care at emergency or maternity centers. |
 | **Spatial Representation:** | Point data of hospitals and maternity care centers and road networks, as well as major cities, regions, subregions, in which sociodemographic factors such as population density and economic indicators can be aggregated. |
 | **Analysis:** | Service network analysis, drawing threshold line of what is outside a service area. |
 | **Decision Support:** | Identify areas that do not have good healthcare distribution and provide suggestions on areas to build new hospitals or maternity care centers AND/OR roads |
+| **Proposed SOlution:** | Clustering of areas similar in sociodemographic characteristics and ranking within each cluster of the ORPs that have the least/most difficult access to emergency care centers and maternity care centers, respectively. Those identified ORPs will be suggested sites of intervention. |
 
 ## Data Sources
 - [Geoportal ČÚZK](https://cuzk.gov.cz/) (administrative and cadastral boundaries, road networks); [Link to portal](https://geoportal.cuzk.gov.cz/mGeoportal/)
