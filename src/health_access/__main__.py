@@ -40,7 +40,7 @@ def main():
         target_epsg=config['projection']['target_epsg']
     )
 
-    # PREPROCESSING CONT: Calculate Census Variables
+    # PREPROCESSING CONT: Calculate New Census Variables
     # We only run this if the file was successfully created in the prior step
     if census_input.exists():
         logger.info("Starting Census Variable Calculation...")
