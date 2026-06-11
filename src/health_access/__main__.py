@@ -2,8 +2,7 @@ import logging
 import geopandas as gpd
 import sys
 import yaml
-import argparse
-import argparse
+import typer
 from pathlib import Path
 
 from health_access.preprocessing.transform import transform_projections
@@ -18,22 +17,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ADDING ARGPARSE --> to allow users to specify which steps to run
-def parse_args():
-    parser = argparse.ArgumentParser(
-        prog="health_access",
-        description="Travel Accessibility of Emergency Care vs. Maternity Care Units.",
-    )
-    parser.add_argument("--skip-transform", action="store_true", # to save some time if we already have the transformed files
-        help="Skip projection transformation (use already transformed data).")
-    parser.add_argument("--skip-clustering", action="store_true", # to save time if we just want to re-run the accessibility calculations after changing the clustering parameters
-        help="Skip clustering step.")
-    parser.add_argument("--n-clusters", type=int, default=None, # to allow users to override the number of clusters specified in the config file without having to edit the config file itself
-        help="Number of KMeans clusters (overrides config). Default: 5.")
-    return parser.parse_args()
+app = typer.Typer()
 
+@app.command()
 def main():
-    args = parse_args()
+    skip_transform: bool = typer.Option(False, "--skip-transform", help="Skip projection transformation (use already transformed data)."),
+    skip_clustering: bool = typer.Option(False, "--skip-clustering", help="Skip clustering step."),
+    n_clusters: int = typer.Option(None, "--n-clusters", help="Number of KMeans clusters (overrides config). Default: 5."),
+
     logger.info("Hello from Marie and Kana!")
     
     # Loading Configuration
@@ -51,12 +42,12 @@ def main():
     clustered_output = project_root / config['paths']['clustered_output']
 
     # Override config with CLI arguments if provided
-    if args.n_clusters is not None:
-        config['clustering']['n_clusters'] = args.n_clusters
-        logger.info(f"Using n_clusters={args.n_clusters} from CLI.")
+    if n_clusters is not None:
+        config['clustering']['n_clusters'] = n_clusters
+
 
    # 1. PREPROCESSING: Transform all raw files to EPSG:5514
-    if not args.skip_transform:
+    if not skip_transform:
         logger.info("Starting Projection Transformation...")
         transform_projections(
             raw_dir, 
@@ -78,7 +69,7 @@ def main():
     logger.info("Data preprocessing complete!")
 
     # 2. CLUSTERING - We only run this if the file was successfully created in the prior step, and if the user didn't specify to skip clustering
-    if not args.skip_clustering:
+    if not skip_clustering: # We check for the file first.
         if census_output.exists():
             logger.info("Starting Clustering...")
 
@@ -103,4 +94,4 @@ def main():
     logger.info("Complete! :) ")
 
 if __name__ == "__main__":
-    main()
+    app()
