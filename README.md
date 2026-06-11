@@ -44,13 +44,13 @@ Data Preprocessing --> Clustering --> Accessibility Index
 
 ```
 spatial-justice/
+├── config/                    
+│   └── settings.yaml 
 ├── data/                   
 │   ├── raw/   
 │   ├── transformed/               
 │   ├── processed/          
 │   └── visualizations/              
-├── config/                    
-│   └── settings.yaml 
 ├── src/health_access/                    
 │   ├── __init__.py
 │   ├── __main__.py          
