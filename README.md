@@ -20,7 +20,7 @@ Based on literature, we will find acceptable travel thresholds and assess access
 | **Spatial Representation:** | Point data of hospitals and maternity care centers and road networks, as well as major cities, regions, subregions, in which sociodemographic factors such as population density and economic indicators can be aggregated. |
 | **Analysis:** | Service network analysis, drawing threshold line of what is outside a service area. |
 | **Decision Support:** | Identify areas that do not have good healthcare distribution and provide suggestions on areas to build new hospitals or maternity care centers AND/OR roads |
-| **Proposed SOlution:** | Clustering of areas similar in sociodemographic characteristics and ranking within each cluster of the ORPs that have the least/most difficult access to emergency care centers and maternity care centers, respectively. Those identified ORPs will be suggested sites of intervention. |
+| **Proposed Solution:** | Clustering of areas similar in sociodemographic characteristics and ranking within each cluster of the ORPs that have the least/most difficult access to emergency care centers and maternity care centers, respectively. Those identified ORPs will be suggested sites of intervention. |
 
 ## Data Sources
 - [Geoportal ČÚZK](https://cuzk.gov.cz/) (administrative and cadastral boundaries, road networks); [Link to portal](https://geoportal.cuzk.gov.cz/mGeoportal/)
@@ -47,7 +47,7 @@ uv run health_access to run the project.
 
 | Options | |
 | ----------- | ----------- |
-| -h, --help | show this help message and exit |
+| -h, --help | To show options |
 | --skip-transform | Skip projection transformation (use already transformed data). |
 | --skip-clustering | Skip clustering step. |
 | --n-clusters INSERT NUMBER | Number of clusters; overrides the configuration default of 5 clusters |
