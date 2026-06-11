@@ -12,7 +12,7 @@ dependencies = [
     "pandas",
     "pyyaml>=6.0.3",
     "splot>=1.1.7",
-    "NumPy",
+    "numpy>=2.0.0",
     "SciPy",
     "scikit-learn",
     "joblib",
@@ -25,7 +25,7 @@ dependencies = [
 notebooks = [
     "geopandas",
     "pandas",
-    "numpy<2",
+    "numpy>=2.0.0",
     "osmnx",
     "pandana",
     "matplotlib",
