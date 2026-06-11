@@ -19,6 +19,7 @@ dependencies = [
     "threadpoolctl",
     "path>=17.1.1",
     "typing>=3.10.0.0",
+    "typer>=0.26.7",
 ]
 
 [project.optional-dependencies]
@@ -34,7 +35,7 @@ notebooks = [
 ]
 
 [project.scripts]
-health_access = "health_access.__main__:main"
+health_access = "health_access.__main__:app"
 
 [build-system]
 requires = ["hatchling"]

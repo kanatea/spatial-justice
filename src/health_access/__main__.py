@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 app = typer.Typer()
 
 @app.command()
-def main():
+def main(
     skip_transform: bool = typer.Option(False, "--skip-transform", help="Skip projection transformation (use already transformed data)."),
     skip_clustering: bool = typer.Option(False, "--skip-clustering", help="Skip clustering step."),
     n_clusters: int = typer.Option(None, "--n-clusters", help="Number of KMeans clusters (overrides config). Default: 5."),
-
+):
     logger.info("Hello from Marie and Kana!")
     
     # Loading Configuration
@@ -44,7 +44,7 @@ def main():
     # Override config with CLI arguments if provided
     if n_clusters is not None:
         config['clustering']['n_clusters'] = n_clusters
-
+        logger.info(f"Using n_clusters={n_clusters} from CLI.")    
 
    # 1. PREPROCESSING: Transform all raw files to EPSG:5514
     if not skip_transform:
@@ -92,6 +92,7 @@ def main():
  #       logger.error("Variables file missing. Skipping Clustering and Visualization.")
 
     logger.info("Complete! :) ")
+
 
 if __name__ == "__main__":
     app()
