@@ -42,7 +42,7 @@ Data Preprocessing --> Clustering --> Accessibility Index
 
 ## Project Structure
 
-`
+```
 spatial-justice/
 ├── data/                   
 │   ├── raw/   
@@ -67,7 +67,7 @@ spatial-justice/
 ├── pyproject.toml
 ├── LICENSE.md
 └── README.md
-`
+```
 
 ## How To Run
 Please reference `pyproject.toml` for requirements and dependencies. Configuration file can be found in the `config` folder and default settings can be changed there. 
