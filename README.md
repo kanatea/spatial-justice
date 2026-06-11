@@ -40,10 +40,39 @@ Data Preprocessing --> Clustering --> Accessibility Index
 3. Assess accessibility to emergency and maternity care centers within clusters 
     - [Valhalla](https://github.com/valhalla/valhalla) is a routing agent that calculates the distances between two points; in this case, we will calculate the distance between the centroids of the districts to the nearest healthcare center, with distinction between emergency care and maternity care. 
 
-## To Run
-Please reference pyproject.toml for requirements and dependencies. Configuration file can be found in the config folder and default settings can be changed there. 
+## Project Structure
 
-uv run health_access to run the project. 
+```
+spatial-justice/
+├── config/                    
+│   └── settings.yaml 
+├── data/                   
+│   ├── raw/   
+│   ├── transformed/               
+│   ├── processed/          
+│   └── visualizations/              
+├── src/health_access/                    
+│   ├── __init__.py
+│   ├── __main__.py          
+│   ├── preprocessing/      
+│   │   ├── __init__.py
+│   │   ├── standardize.py
+│   │   └── transform.py  
+│   ├── clustering/ 
+│   │   ├── __init__.py
+│   │   └── model.py 
+│   └── accessibility/ 
+│       ├── __init__.py
+│       └── analysis.py
+├── pyproject.toml
+├── LICENSE.md
+└── README.md
+```
+
+## How To Run
+Please reference `pyproject.toml` for requirements and dependencies. Configuration file can be found in the `config` folder and default settings can be changed there. 
+
+`uv run health_access` to run the project. 
 
 | Options | |
 | ----------- | ----------- |
