@@ -1,10 +1,14 @@
 # Data paths
-#paths:
-#  census_raw: "data/raw/census_data.csv" PLACEHOLDER
-#  boundaries: "data/raw/districts.geojson"
-#  hospitals: "data/raw/hospital.geojson"
-#  maternity: "data/raw/maternity_points.geojson"
-#  output_final: "data/final/results.csv" ?????????????
+paths:
+  raw_dir: "data/raw"
+  transformed_dir: "data/transformed"
+  census_input: "data/transformed/admin_boundaries_ORP.geojson"
+  census_output: "data/transformed/admin_boundaries_ORP_variables.geojson"
+  clustered_output: "data/processed/clusters.geojson"
+
+# Projection Settings
+projection:
+  target_epsg: 5514
 
 # Clustering Parameters
 clustering:
@@ -12,15 +16,27 @@ clustering:
   random_state: 42
 
   features:
-    - Z_POP_DENS
-    - Z_PCT_WOMEN
-    - Z_PCT_CHILD
-    - Z_PCT_ELDERLY
-    - Z_AGEING_INDEX
-    - Z_DEPENDENCY
-    - Z_MIRA_NEZAM #unemployment rate
-    - Z_NATURAL_INC_RATE
-    - Z_MIG_BAL_RATE
+    - 'POP_DENS' 
+    - 'PCT_WOMEN'
+    - 'PCT_CHILD'
+    - 'PCT_WORKING'
+    - 'PCT_ELDERLY'
+    - 'AGEING_INDEX'
+    - 'DEPENDENCY'
+    - 'NATURAL_INC_RATE'
+    - 'MIG_BAL_RATE'
+
+
+
+#    - Z_POP_DENS
+#    - Z_PCT_WOMEN
+#    - Z_PCT_CHILD
+#    - Z_PCT_ELDERLY
+#    - Z_AGEING_INDEX
+#    - Z_DEPENDENCY
+#    - Z_MIRA_NEZAM #unemployment rate
+#    - Z_NATURAL_INC_RATE
+#    - Z_MIG_BAL_RATE
 
 # Valhalla Settings
 #valhalla:

@@ -1,27 +1,28 @@
 import logging
 import geopandas as gpd
-import os
-from glob import glob
 from pathlib import Path
+from glob import glob
+from typing import Union
 
 # Setup logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Function to transform projections 
-def transform_projections(raw, transformed, target_epsg=5514):
+def transform_projections(raw_dir: Union[str, Path], transformed_dir: Union[str, Path], target_epsg: int = 5514):
     """
     Reads all geojson files in the raw data folder, transforms them to target_epsg,
     and saves them to the transformed folder.
     """
-    # 1. Create output folder if it doesn't exist
-    if not os.path.exists(transformed):
-        os.makedirs(transformed)
-        logger.info(f"Created output directory: {transformed}")
+    # Convert inputs to Path objects for consistency
+    raw_path = Path(raw_dir)
+    transformed_path = Path(transformed_dir)
 
-    # 2. Get a list of all .geojson files in the input folder
-    search_path = os.path.join(raw, "*.geojson")
-    files = glob(search_path)
+    # 1. Create output folder if it doesn't exist
+    transformed_path.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Ensured output directory exists: {transformed_path}")
+
+    # 2. Get a list of all .geojson files using Path.glob
+    files = list(raw_path.glob("*.geojson"))
     
     if not files:
         logger.warning("No .geojson files found in the specified folder.")
@@ -29,7 +30,7 @@ def transform_projections(raw, transformed, target_epsg=5514):
 
     # 3. Loop through each file
     for file_path in files:
-        filename = os.path.basename(file_path)
+        filename = file_path.name
         try:
             logger.info(f"---- processing {filename} ----")
             
@@ -41,7 +42,7 @@ def transform_projections(raw, transformed, target_epsg=5514):
             gdf = gdf.to_crs(epsg=target_epsg)
             
             # Define output path
-            output_path = os.path.join(transformed, filename)
+            output_path = transformed_path / filename
             
             # Save the file
             gdf.to_file(output_path, driver='GeoJSON')
@@ -49,17 +50,3 @@ def transform_projections(raw, transformed, target_epsg=5514):
             
         except Exception as e:
             logger.error(f"Failed to process {filename}: {e}")
-
-# --- Execution ---
-if __name__ == "__main__":
-    #navigating to the data folder
-    #project_root = Path(r"C:\Users\kana2\OneDrive\Documents\GitHub\spatial-justice\data") 
-    current_file_path = Path(__file__).resolve()
-    project_root = current_file_path.parents[3]
-    
-    INPUT_DIR = project_root / "raw" 
-    OUTPUT_DIR = project_root / "transformed"
-    TARGET_EPSG = 5514
-
-    # transform projections for all files in the raw data folder and save to the transformed folder
-    transform_projections(str(INPUT_DIR), str(OUTPUT_DIR), TARGET_EPSG)
