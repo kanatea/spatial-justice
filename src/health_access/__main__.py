@@ -80,12 +80,16 @@ def main():
     if not args.skip_clustering:
         if census_output.exists():
             logger.info("Starting Clustering...")
+
             gdf_vars = gpd.read_file(census_output)
             gdf_clustered = apply_clustering(gdf_vars, config)
+
             gdf_clustered.to_file(clustered_output, driver="GeoJSON")
             logger.info(f"Clustered data saved to: {clustered_output}")
+        
         else:
             logger.error("Variables file missing. Skipping clustering.")
+
     # VISUALIZATION
         logger.info("Generating cluster map...")
         saved_map_path = create_cluster_map(gdf_clustered, config, project_root)
@@ -93,38 +97,9 @@ def main():
 
     else:
         logger.info("Skipping clustering (--skip-clustering set).")
-        logger.error("Variables file missing. Skipping Clustering and Visualization.")
+ #       logger.error("Variables file missing. Skipping Clustering and Visualization.")
 
     logger.info("Complete! :) ")
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-# Load configuration
-#    with open("config/settings.yaml", "r") as f:
-#        config = yaml.safe_load(f)
-
-    # Part 1: Data Preprocessing 
-    # Function from src.health_access.preprocessing
-#    df = pd.read_csv(config['paths']['census_raw'])
-
-    # Part 2: Clustering
-#    print("Clustering districts...")
-#    df_clustered = apply_clustering(df, config)
-
-    # Part 3: Accessibility (You will implement this later)
-    # results = calculate_accessibility(df_clustered, config)
-
-    # Save the results
-#    df_clustered.to_csv("data/processed/clustered_districts.csv", index=False)
-#    print("Success! Results saved to data/processed/")

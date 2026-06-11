@@ -18,7 +18,7 @@ def create_cluster_map(gdf, config, project_root):
     gdf.plot(
         column='cluster', 
         cmap=config['visualization']['cmap'], 
-        legend=True, 
+        legend=False, 
         ax=ax, 
         edgecolor='white', 
         linewidth=0.5
