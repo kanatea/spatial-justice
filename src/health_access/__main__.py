@@ -17,15 +17,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = typer.Typer()
+app = typer.Typer(context_settings={"help_option_names": ["-h", "--help"]})
 
 @app.command()
 def main(
-    skip_transform: bool = typer.Option(False, "--skip-transform", help="Skip projection transformation (use already transformed data)."),
-    skip_clustering: bool = typer.Option(False, "--skip-clustering", help="Skip clustering step."),
-    n_clusters: int = typer.Option(None, "--n-clusters", help="Number of KMeans clusters (overrides config). Default: 5."),
+    skip_transform: bool = typer.Option(False, "--skip-transform", "-st", help="Skip projection transformation (use already transformed data)."),
+    skip_clustering: bool = typer.Option(False, "--skip-clustering", "-sc", help="Skip clustering step."),
+    n_clusters: int = typer.Option(None, "--n-clusters", "-n", help="Number of KMeans clusters (overrides config). Default: 5."),
+    show_legend: bool = typer.Option(False, "--legend", "-l", help="Add a legend to the cluster map."),
 ):
-    logger.info("Hello from Marie and Kana!")
     
     # Loading Configuration
     project_root = Path(__file__).resolve().parents[2] 
@@ -84,12 +84,12 @@ def main(
 
     # CLUSTERING CONT - VISUALIZATION
         logger.info("Generating cluster map...")
-        saved_map_path = create_cluster_map(gdf_clustered, config, project_root)
+        saved_map_path = create_cluster_map(gdf_clustered, config, project_root, show_legend=show_legend)
         logger.info(f"Visualization saved to: {saved_map_path}")
 
     else:
         logger.info("Skipping clustering (--skip-clustering set).")
- #       logger.error("Variables file missing. Skipping Clustering and Visualization.")
+    # logger.error("Variables file missing. Skipping Clustering and Visualization.")
 
     logger.info("Complete! :) ")
 
