@@ -41,9 +41,9 @@ Data Preprocessing --> Clustering --> Accessibility Index
     - [Valhalla](https://github.com/valhalla/valhalla) is a routing agent that calculates the distances between two points; in this case, we will calculate the distance between the centroids of the districts to the nearest healthcare center, with distinction between emergency care and maternity care. 
 
 ## To Run
-Please reference pyproject.toml for requirements and dependencies. Configuration file can be found in the config folder and default settings can be changed there. 
+Please reference `pyproject.toml` for requirements and dependencies. Configuration file can be found in the `config` folder and default settings can be changed there. 
 
-uv run health_access to run the project. 
+`uv run health_access` to run the project. 
 
 | Options | |
 | ----------- | ----------- |
