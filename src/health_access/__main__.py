@@ -3,10 +3,12 @@ import geopandas as gpd
 import sys
 import yaml
 import argparse
+import argparse
 from pathlib import Path
 from health_access.preprocessing.transform import transform_projections
 from health_access.preprocessing.standardize import standardize_data
 from health_access.clustering.model import apply_clustering
+from health_access.clustering.visualization import create_cluster_map
 
 logging.basicConfig(
     level=logging.INFO,
@@ -74,7 +76,7 @@ def main():
 
     logger.info("Data preprocessing complete!")
 
-    # 2. CLUSTERING - We only run this if the file was successfully created in the prior step, and if the user didn't specify to skip clustering
+    # CLUSTERING - We only run this if the file was successfully created in the prior step, and if the user didn't specify to skip clustering
     if not args.skip_clustering:
         if census_output.exists():
             logger.info("Starting Clustering...")
@@ -84,8 +86,16 @@ def main():
             logger.info(f"Clustered data saved to: {clustered_output}")
         else:
             logger.error("Variables file missing. Skipping clustering.")
+    # VISUALIZATION
+        logger.info("Generating cluster map...")
+        saved_map_path = create_cluster_map(gdf_clustered, config, project_root)
+        logger.info(f"Visualization saved to: {saved_map_path}")
+
     else:
         logger.info("Skipping clustering (--skip-clustering set).")
+        logger.error("Variables file missing. Skipping Clustering and Visualization.")
+
+    logger.info("Complete! :) ")
 
 if __name__ == "__main__":
     main()

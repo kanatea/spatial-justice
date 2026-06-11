@@ -5,6 +5,7 @@ paths:
   census_input: "data/transformed/admin_boundaries_ORP.geojson"
   census_output: "data/transformed/admin_boundaries_ORP_variables.geojson"
   clustered_output: "data/processed/clusters.geojson"
+  processed_dir: "data/visualizations" # Folder for the PNG
 
 # Projection Settings
 projection:
@@ -26,17 +27,10 @@ clustering:
     - 'NATURAL_INC_RATE'
     - 'MIG_BAL_RATE'
 
-
-
-#    - Z_POP_DENS
-#    - Z_PCT_WOMEN
-#    - Z_PCT_CHILD
-#    - Z_PCT_ELDERLY
-#    - Z_AGEING_INDEX
-#    - Z_DEPENDENCY
-#    - Z_MIRA_NEZAM #unemployment rate
-#    - Z_NATURAL_INC_RATE
-#    - Z_MIG_BAL_RATE
+visualization:
+  output_filename: "cluster_map.png"
+  cmap: "tab10" 
+  title: "ORP Clusters based on 9 Selected Variables"
 
 # Valhalla Settings
 #valhalla:

@@ -26,7 +26,6 @@ Based on literature, we will find acceptable travel thresholds and assess access
 - [National Registry of Healthcare Providers](https://nrpzs.uzis.cz/) (csv file of all healtcare providers)
 - [OpenStreetMap](https://overpass-turbo.eu/) via overpass-turbo (road networks, regional boundaries, hospital location backup)
 - [Czech Statistical Office](https://csu.gov.cz/2021-census?pocet=10&start=0&podskupiny=171&razeni=-datumVydani) for 2021 Census
-- More to come
 
 ## Proposed Method
 Data Preprocessing --> Clustering --> Accessibility Index
@@ -35,7 +34,7 @@ Data Preprocessing --> Clustering --> Accessibility Index
     - What kind of services are included in maternity care?
 2. For clustering, a multivariate clustering method will be conducted based on relevant sociodemographic and land use cover, such as area size, population density, average age, natality rate, % women in fertile age, and % residential area within a given district.
     - Expecting 3-5 clusters of administrative districts 
-    - We will use the scikit-learn module to conduct k-means clustering. Github repository [here] (https://github.com/scikit-learn/scikit-learn/tree/fe2edb3cdbd75ae4e662fda67dcb19277258792b) and documentation [here] (https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html#sklearn.cluster.KMeans)
+    - We will use the scikit-learn module to conduct k-means clustering. Github repository [here](https://github.com/scikit-learn/scikit-learn/tree/fe2edb3cdbd75ae4e662fda67dcb19277258792b) and documentation [here](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html#sklearn.cluster.KMeans)
 
 3. Assess accessibility to emergency and maternity care centers within clusters 
     - [Valhalla](https://github.com/valhalla/valhalla) is a routing agent that calculates the distances between two points; in this case, we will calculate the distance between the centroids of the districts to the nearest healthcare center, with distinction between emergency care and maternity care. 
