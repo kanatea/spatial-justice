@@ -1,33 +1,52 @@
 import pandas as pd
+import geopandas as gpd
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+import logging
 
-def apply_clustering(df, config):
+logger = logging.getLogger(__name__)
+
+def apply_clustering(df: gpd.DataFrame, config: dict) -> gpd.DataFrame:
     """
-    Takes a dataframe and a config dictionary, performs K-Means clustering,
-    and returns the dataframe with a 'cluster' column.
+    Performs K-Means clustering based on a configuration dictionary.
+    
+    Args:
+        df: DataFrame containing the census variables.
+        config: Dictionary containing 'clustering' settings (features, n_clusters, random_state).
+    Returns:
+        DataFrame with an added 'cluster' column.
     """
-    # 1. Extract the features we want to cluster by from the config
+    # 1. Extract the features from the config
     features = config['clustering']['features']
+    
+    # Safety check: Ensure all requested features exist in the dataframe
+    missing_cols = [col for col in features if col not in df.columns]
+    if missing_cols:
+        raise KeyError(f"The following required features are missing from the DataFrame: {missing_cols}")
+
     X = df[features]
 
-# UNDERSTAND THIS AND SCALE IT
     # 2. Scale the data
-    # We keep the scaler inside the function or return it if needed for future data
+    # Standardizing is critical for K-Means because it relies on Euclidean distance.
+    # Without this, a variable with a range of 0-1000 will dominate a variable of 0-1.
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
+    logger.info(f"Data scaled successfully using {len(features)} features.")
 
-    # X_scaled = X.values # Use the original values since they are already standardized
-
-    # 3. Initialize and fit the model using config values
+    # 3. Initialize and fit the model
+    n_clusters = config['clustering']['n_clusters']
+    random_state = config['clustering']['random_state']
+    
+    logger.info(f"Fitting KMeans with n_clusters={n_clusters}...")
     kmeans = KMeans(
-        n_clusters=config['clustering']['n_clusters'], 
-        random_state=config['clustering']['random_state'],
-        n_init='auto' # Added to avoid sklearn warnings in newer versions
+        n_clusters=n_clusters, 
+        random_state=random_state,
+        n_init='auto'  # Added to avoid sklearn warnings in newer versions
     ) 
     
-    # Create a copy to avoid SettingWithCopyWarning in pandas
-    df_result = df.copy() #can change name
+    # Create a copy to avoid SettingWithCopyWarning
+    df_result = df.copy()
     df_result['cluster'] = kmeans.fit_predict(X_scaled)
     
-    return df_result #can change name
+    logger.info("Clustering complete. Cluster labels added to dataframe.")
+    return df_result
