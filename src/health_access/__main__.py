@@ -1,7 +1,6 @@
 import logging
 import geopandas as gpd
 import sys
-#import yaml
 import typer
 from pathlib import Path
 
@@ -31,7 +30,7 @@ def main(
         "admin_boundaries_ORP.geojson",
         "--input",
         "-i",
-        help="GeoJSON filename inside the data/raw/ folder.",
+        help="GeoJSON filename inside the data/transformed/ folder to be used for clustering.",
     ),
     target_epsg: int = typer.Option(
         5514,
