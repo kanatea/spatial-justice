@@ -61,7 +61,7 @@ spatial-justice/
 ```
 
 ## How To Run
-Please reference `pyproject.toml` for requirements and dependencies. Configuration file can be found in the `config` folder and default settings can be changed there. 
+Please reference `pyproject.toml` for requirements and dependencies.
 
 `uv run health_access` to run the project. 
 
