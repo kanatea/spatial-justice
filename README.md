@@ -44,26 +44,17 @@ Data Preprocessing --> Clustering --> Accessibility Index
 
 ```
 spatial-justice/
-├── config/                    
-│   └── settings.yaml 
 ├── data/                   
 │   ├── raw/   
-│   ├── transformed/               
-│   ├── processed/          
-│   └── visualizations/              
+│   ├── transformed/                       
+│   └── processed/   
+├── visualizations/            
 ├── src/health_access/                    
 │   ├── __init__.py
 │   ├── __main__.py          
-│   ├── preprocessing/      
-│   │   ├── __init__.py
-│   │   ├── standardize.py
-│   │   └── transform.py  
-│   ├── clustering/ 
-│   │   ├── __init__.py
-│   │   └── model.py 
-│   └── accessibility/ 
-│       ├── __init__.py
-│       └── analysis.py
+│   ├── a_preprocessing.py  
+│   ├── b_clustering.py
+│   └── visualization.py
 ├── pyproject.toml
 ├── LICENSE.md
 └── README.md
@@ -74,7 +65,7 @@ Please reference `pyproject.toml` for requirements and dependencies. Configurati
 
 `uv run health_access` to run the project. 
 
-| Options | |
+| Options (TO BE UPDATED) | |
 | ----------- | ----------- |
 | -h, --help | To show options |
 | --skip-transform | Skip projection transformation (use already transformed data). |
