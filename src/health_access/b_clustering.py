@@ -40,3 +40,6 @@ def apply_clustering(df: gpd.DataFrame, features: List[str], n_clusters: int, ra
     
     logger.info("Clustering complete. Cluster labels added to dataframe.")
     return df_result
+
+
+#NEED TO WRITE CODE TO SEPARATE CLUSTERS TO CONDUCT SUBSEQUENT ANALYSES

@@ -20,6 +20,8 @@ dependencies = [
     "path>=17.1.1",
     "typing>=3.10.0.0",
     "typer>=0.26.7",
+    "osmnx>=2.1.0",
+    "pandana>=0.7",
 ]
 
 [project.optional-dependencies]

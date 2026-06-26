@@ -4,7 +4,7 @@ import sys
 import typer
 from pathlib import Path
 
-from health_access.a_preprocessing import transform_projections, standardize_data
+from health_access.a_preprocessing import transform_projections, standardize_data, aggregate_poi
 from health_access.b_clustering import apply_clustering
 from health_access.visualization import create_cluster_map
 
@@ -20,8 +20,15 @@ app = typer.Typer(context_settings={"help_option_names": ["-h", "--help"]})
 CLUSTERING_FEATURES = [
     "POP_DENS", "PCT_WOMEN", "PCT_CHILD", 
     "PCT_WORKING", "PCT_ELDERLY", "AGEING_INDEX", 
-    "DEPENDENCY", "NATURAL_INC_RATE", "MIG_BAL_RATE"
+    "DEPENDENCY", "NATURAL_INC_RATE", "MIG_BAL_RATE" #,
+    # "COUNT_EMERGENCY", "COUNT_MATERNITY", "COUNT_TOTAL_CARE"
 ]
+
+# Define the mapping for the point files
+POINT_MAPPING = {
+    "OD_emergency_care.geojson": "COUNT_EMERGENCY",
+    "OD_maternity_care.geojson": "COUNT_MATERNITY"
+}
 
 
 @app.command()
@@ -98,14 +105,25 @@ def main(
         logger.info("Skipping transform.")
 
 
-    # PREPROCESSING CONT: Calculate New Census Variables
+    # PREPROCESSING CONT: Calculate Standardized Census Variables + Add POI 
     # We only run this if the file was successfully created in the prior step
     if not skip_standardize:
         if input_file.exists():
-            logger.info("Starting Census Variable Calculation...")
+            logger.info("Starting Census Variable Standardization...")
             standardize_data(input_file, census_output)
+
+            # We load the GDF here so we can pass it to the aggregator
+            gdf = gpd.read_file(census_output)
+
+            # AGGREGATE POINTS
+            logger.info("Aggregating point data...")
+            gdf = aggregate_poi(gdf, POINT_MAPPING, transformed_dir)
+            
+            # Save the updated GDF to the variables file
+            gdf.to_file(census_output, driver="GeoJSON")
+
         else:
-            logger.error(f"Census input file not found at {input_file}. Skipping calculation.")
+            logger.error(f"Input file not found at {input_file}. Skipping calculation.")
 
     else:
         logger.info("Data preprocessing complete!")
@@ -129,7 +147,8 @@ def main(
         else:
             logger.error("Variables file missing. Skipping clustering.")
 
-    # CLUSTERING CONT - VISUALIZATION
+    #  CLUSTER CONT  - VISUALIZATION
+        # Image A: Clusters only
         logger.info("Generating cluster map...")
         saved_map_path = create_cluster_map(
             gdf_clustered,
@@ -137,6 +156,19 @@ def main(
             n_clusters = n_clusters,
             show_legend=show_legend,
             title="ORP Clusters based on 9 Selected Variables"
+        )
+
+        # Image B: Clusters + Points
+        logger.info("Generating cluster map with point overlays...")
+        create_cluster_map(
+            gdf_clustered, 
+            project_root=project_root, 
+            n_clusters=n_clusters, 
+            with_points=True, 
+            point_mapping=POINT_MAPPING, 
+            points_dir=raw_dir, 
+            show_legend=show_legend,
+            title="Spatial Justice Analysis"
         )
         logger.info(f"Visualization saved to: {saved_map_path}")
 

@@ -2,7 +2,7 @@ import logging
 import geopandas as gpd
 from pathlib import Path
 from glob import glob
-from typing import Union
+from typing import Union, List, Dict
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -88,3 +88,49 @@ def standardize_data(input_path: Path, output_path: Path):
     gdf.to_file(output_path, driver="GeoJSON")
     
     return output_path # Returning the path is helpful for the next step in main.py
+
+
+def aggregate_poi(boundary_gdf: gpd.GeoDataFrame, point_mapping: Dict[str, str], points_dir: Path) -> gpd.GeoDataFrame:
+    """
+    Counts points from specific files and adds them as individual columns to the boundary GDF.
+    
+    Args:
+        boundary_gdf: The ORP boundaries GeoDataFrame.
+        point_mapping: Dict mapping filename to column name {'OD_emergency_care.geojson': 'COUNT_EMERGENCY'}
+        points_dir: Path to the directory containing the point files.
+    """
+    df_result = boundary_gdf.copy()
+    total_sum = 0
+
+    for filename_poi, col_name in point_mapping.items():
+        file_path = points_dir / filename_poi
+        if not file_path.exists():
+            logger.warning(f"Point file {filename_poi} not found at {file_path}. Skipping.")
+            continue
+        
+        logger.info(f"Aggregating {filename_poi} into {col_name}...")
+        points_gdf = gpd.read_file(file_path)
+        
+        # Spatial join: find which polygon each point is in
+        # 'within' means the point is inside the polygon
+        joined = gpd.sjoin(points_gdf, df_result, predicate='within')
+        
+        # Count points per polygon index and map back to the main dataframe
+        counts = joined.groupby('index_right').size()
+        # .reindex ensures that polygons with 0 points get a 0 instead of a NaN
+        df_result[col_name] = counts.reindex(df_result.index, fill_value=0)
+        
+        # Accumulate for the total column
+        total_sum += counts.fillna(0)
+
+    # Create the final total column
+    df_result['COUNT_TOTAL_CARE'] = total_sum.fillna(0).astype(int)
+    
+    # Fill NaNs for individual columns with 0
+    df_result = df_result.fillna({'COUNT_EMERGENCY': 0, 'COUNT_MATERNITY': 0}) # Adjust names based on mapping
+    
+    # Ensure all count columns are integers
+    count_cols = list(point_mapping.values()) + ['COUNT_TOTAL_CARE']
+    df_result[count_cols] = df_result[count_cols].fillna(0).astype(int)
+    
+    return df_result
