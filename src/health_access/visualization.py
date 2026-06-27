@@ -61,7 +61,6 @@ def create_cluster_map(gdf, project_root, n_clusters, show_legend=False, title="
     return output_path
 
 
-
 def create_cluster_map(
     gdf, 
     project_root, 

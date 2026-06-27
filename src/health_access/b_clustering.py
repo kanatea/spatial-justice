@@ -41,5 +41,13 @@ def apply_clustering(df: gpd.DataFrame, features: List[str], n_clusters: int, ra
     logger.info("Clustering complete. Cluster labels added to dataframe.")
     return df_result
 
+#CODE TO SEPARATE CLUSTERS TO CONDUCT SUBSEQUENT ANALYSES
+#Moran's I and accessibility analyses will run per cluster...
 
-#NEED TO WRITE CODE TO SEPARATE CLUSTERS TO CONDUCT SUBSEQUENT ANALYSES
+def export_clusters_separately(gdf, output_dir):
+    """Saves each cluster into a separate GeoJSON file."""
+    for cluster_id in sorted(gdf["cluster"].unique()):
+        subset = gdf[gdf["cluster"] == cluster_id]
+        path = output_dir / f"cluster_{cluster_id}.geojson"
+        subset.to_file(path, driver="GeoJSON")
+        logger.info(f"Saved cluster {cluster_id} -> {path.name}")
