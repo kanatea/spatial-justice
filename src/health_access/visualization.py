@@ -101,7 +101,11 @@ def plot_accessibility_map(
         column=column,
         cmap="RdYlGn_r",
         legend=True,
-        legend_kwds={"label": "meters", "shrink": 0.6},
+        # replacing this --> legend_kwds={"label": "meters", "shrink": 0.6},
+        legend_kwds={
+        "label": "Travel time (minutes)",
+        "shrink": 0.6,
+        "orientation": "horizontal",  # puts it at the bottom instead of the side
         edgecolor="white",
         linewidth=0.5,
         ax=ax,
@@ -117,6 +121,12 @@ def plot_accessibility_map(
                 color="black",
             )
     ax.set_title(title, fontsize=13, pad=12)
+    ax.annotate(
+        "Red = maternity takes longer than emergency\nGreen = emergency takes longer than maternity",
+        xy=(0.02, 0.02),
+        xycoords="axes fraction",
+        fontsize=8,
+        color="#444444",
     ax.set_axis_off()
     return fig
 

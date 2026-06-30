@@ -5,7 +5,7 @@ import typer
 from pathlib import Path
 
 from health_access.a_preprocessing import transform_projections, standardize_data, aggregate_poi
-from health_access.b_clustering import apply_clustering
+from health_access.b_clustering import apply_clustering, export_clusters_separately
 from health_access.visualization import create_cluster_map
 
 logging.basicConfig(
@@ -142,7 +142,12 @@ def main(
             )
 
             gdf_clustered.to_file(clustered_output, driver="GeoJSON")
+
             logger.info(f"Clustered data saved to: {clustered_output}")
+
+            clusters_dir = project_root / "data/processed/clusters"
+            clusters_dir.mkdir(parents=True, exist_ok=True)
+            export_clusters_separately(gdf_clustered, clusters_dir)
         
         else:
             logger.error("Variables file missing. Skipping clustering.")
