@@ -101,15 +101,17 @@ def plot_accessibility_map(
         column=column,
         cmap="RdYlGn_r",
         legend=True,
-        # replacing this --> legend_kwds={"label": "meters", "shrink": 0.6},
         legend_kwds={
-        "label": "Travel time (minutes)",
-        "shrink": 0.6,
-        "orientation": "horizontal",  # puts it at the bottom instead of the side
+            "label": "Travel time (minutes)",
+            "shrink": 0.6,
+            "orientation": "horizontal",
+        },
         edgecolor="white",
         linewidth=0.5,
         ax=ax,
     )
+
+
     # label each district
     for _, row in gdf.iterrows():
         if pd.notna(row[column]):
@@ -127,6 +129,7 @@ def plot_accessibility_map(
         xycoords="axes fraction",
         fontsize=8,
         color="#444444",
+    )
     ax.set_axis_off()
     return fig
 
