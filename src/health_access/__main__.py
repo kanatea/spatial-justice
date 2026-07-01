@@ -6,7 +6,9 @@ from pathlib import Path
 
 from health_access.a_preprocessing import transform_projections, standardize_data, aggregate_poi
 from health_access.b_clustering import apply_clustering, export_clusters_separately
-from health_access.visualization import create_cluster_map
+# later import the Moran's I
+from health_access.d_analysis_accessibility import calculate_health_accessibility
+from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, plot_network_accessibility
 
 logging.basicConfig(
     level=logging.INFO,
@@ -75,11 +77,17 @@ def main(
         "-sc", 
         help="Skip clustering step."
         ),
+    skip_accessibility: bool = typer.Option( # define
+        False, 
+        "--skip-accessibility", 
+        "-sa", 
+        help="Skip accessibility analysis step."
+        ),
     show_legend: bool = typer.Option(
         False, 
         "--legend", 
         "-l", 
-        help="Add a legend to the cluster map."
+        help="Add a legend to the cluster map." # is this just for the cluster map or all legends?
         ),
 ):
     
@@ -92,8 +100,9 @@ def main(
     input_file = transformed_dir / filename
     census_output = transformed_dir / "data_variables.geojson"
     clustered_output = project_root / f"data/processed/clusters_{n_clusters}.geojson"
+    access_output = project_root / f"data/processed/accessibility_{n_clusters}.geojson"
 
-   # 1. PREPROCESSING: Transform all raw files to EPSG:5514
+   # 1. PREPROCESSING: Transform (reproject) all raw files to EPSG:5514
     if not skip_transform:
         logger.info("Starting Projection Transformation...")
         transform_projections(
@@ -151,6 +160,7 @@ def main(
         
         else:
             logger.error("Variables file missing. Skipping clustering.")
+            return  # Exit the function if the variables file is missing
 
     #  CLUSTER CONT  - VISUALIZATION
         # Image A: Clusters only
