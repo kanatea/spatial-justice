@@ -38,6 +38,10 @@ def apply_clustering(df: gpd.DataFrame, features: List[str], n_clusters: int, ra
     df_result = df.copy()
     df_result['cluster'] = kmeans.fit_predict(X_scaled)
     
+    # this line changes the cluster labels to start from 1 instead of 0, which is more intuitive for users and it will be easier to read in the visualizations.
+    # we can delete it if we want to keep the original labels.
+    df_result['cluster'] = df_result['cluster'] + 1
+    
     logger.info("Clustering complete. Cluster labels added to dataframe.")
     return df_result
 
