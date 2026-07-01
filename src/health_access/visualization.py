@@ -183,12 +183,25 @@ def plot_access_vs_socio(
     ax.text(xmax * 0.98, ymax * 0.98, "Compound\ndeprivation",
             ha="right", va="top", fontsize=8,
             color="red", alpha=0.7)
-
+    
     ax.set_xlabel(f"Mean distance to nearest {poi_type} (meters)", fontsize=11)
     ax.set_ylabel(f"{socio_col} (%)", fontsize=11)
+
+    ax.legend(
+        handles=[
+            plt.Line2D([0], [0], color="grey", linestyle="--", linewidth=0.8,
+                       label="Median (dashed lines)"),
+            plt.Line2D([0], [0], marker="o", color="w", markerfacecolor="steelblue",
+                       markersize=8, label="ORP unit"),
+        ],
+        loc="lower right",
+        fontsize=8,
+        frameon=True,
+    )
+
     ax.set_title(
         f"Accessibility vs Socioeconomic Index\n"
-        f"{poi_type.capitalize()} within {max_distance}m — Münster",
+        f"{poi_type.capitalize()} within {max_distance}m — Czech Republic",
         fontsize=12
     )
     return fig
@@ -234,7 +247,7 @@ def plot_network_accessibility(
 
     if title is None:
         label = "Distance to nearest POI (m)" if "dist" in column else "Opportunities"
-        title = f"Network Accessibility — {label}\n{poi_type.capitalize()} within {max_distance}m — Münster"
+        title = f"Network Accessibility — {label}\n{poi_type.capitalize()} within {max_distance}m — Czech Republic"
 
     fig, ax = plt.subplots(figsize=(12, 12))
 
