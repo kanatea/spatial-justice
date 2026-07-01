@@ -1,10 +1,46 @@
 import requests
 import geopandas as gpd
-import pandas as pd
+# import pandas as pd
+
 
 VALHALLA_URL = "http://localhost:8002"
 
-def calculate_health_accessibility(census_gdf, emergency_gdf, maternity_gdf):
+def get_travel_time_matrix(origins, destinations, costing="auto"):
+    """
+    origins/destinations: list of (lat, lon) tuples.
+    Returns times[i][j] = minutes from origin i to destination j (None if unreachable).
+    """
+    body = {
+        "sources": [{"lat": lat, "lon": lon} for lat, lon in origins],
+        "targets": [{"lat": lat, "lon": lon} for lat, lon in destinations],
+        "costing": costing,
+    }
+    r = requests.post(f"{VALHALLA_URL}/sources_to_targets", json=body, timeout=60)
+    r.raise_for_status()
+    data = r.json()["sources_to_targets"]
+    return [
+        [round(cell["time"] / 60, 1) if cell.get("time") is not None else None for cell in row]
+        for row in data
+    ]
+
+
+def get_min_travel_times_batched(origins, destinations, batch_size=50, costing="auto"):
+    """
+    Chunks origins into batches to stay under Valhalla's matrix size limits.
+    Returns a flat list: min travel time per origin, in original order.
+    """
+    results = []
+    for i in range(0, len(origins), batch_size):
+        chunk = origins[i:i + batch_size]
+        print(f"  batch {i // batch_size + 1}: origins {i}-{i + len(chunk)}")
+        matrix = get_travel_time_matrix(chunk, destinations, costing=costing)
+        for row in matrix:
+            valid = [t for t in row if t is not None]
+            results.append(min(valid) if valid else None)
+    return results
+
+
+def calculate_health_accessibility(census_gdf, emergency_gdf, maternity_gdf, batch_size=50):
     """
     census_gdf:    The GDF containing ORP/census data
     emergency_gdf: The GDF of Emergency care points
@@ -14,67 +50,20 @@ def calculate_health_accessibility(census_gdf, emergency_gdf, maternity_gdf):
     this version sends routing requests to Valhalla running locally in Docker.
     Returns travel time in minutes instead of distance in metres.
     """
+    census_gdf = census_gdf.copy()
+    # Centroid computed in metric CRS, then reprojected to WGS84 = more accurate than computing centroid in WGS84 directly
+    centroids_wgs = census_gdf.geometry.centroid.to_crs("EPSG:4326")
+    origins = [(pt.y, pt.x) for pt in centroids_wgs]
 
-    # 1. CONVERT TO WGS84
-    census_gdf = census_gdf.copy() # avoid modifying the original GDF
-    census_gdf["centroid"] = census_gdf.geometry.centroid # more accurate to calculate the centroids in meters
-    # Valhalla needs lat/lon coordinates, not EPSG:5514 -_- reallyyy?
-    census_wgs    = census_gdf.to_crs("EPSG:4326").copy()
     emergency_wgs = emergency_gdf.to_crs("EPSG:4326")
     maternity_wgs = maternity_gdf.to_crs("EPSG:4326")
+    em_dest  = [(pt.y, pt.x) for pt in emergency_wgs.geometry]
+    mat_dest = [(pt.y, pt.x) for pt in maternity_wgs.geometry]
 
-    # Use the centroid of each ORP polygon as the origin point
-    census_wgs["centroid"] = census_wgs.geometry.centroid
+    print(f"Calculating travel times to {len(em_dest)} Emergency Care sites for {len(origins)} ORPs...")
+    census_gdf["travel_time_emergency"] = get_min_travel_times_batched(origins, em_dest, batch_size)
 
-    # 2. DEFINE HELPER: get travel time between two points
-    def get_travel_time(origin_lat, origin_lon, dest_lat, dest_lon):
-        body = {
-            "locations": [
-                {"lat": origin_lat, "lon": origin_lon},
-                {"lat": dest_lat,   "lon": dest_lon},
-            ],
-            "costing": "auto",
-        }
-        try:
-            r = requests.post(f"{VALHALLA_URL}/route", json=body, timeout=10)
-            if r.status_code == 200:
-                seconds = r.json()["trip"]["summary"]["time"]
-                return round(seconds / 60, 1)  # convert to minutes
-            return None
-        except Exception:
-            return None
-
-    # 3. FIND NEAREST HOSPITAL for each ORP centroid
-    # Same idea as Pandana's get_poi_distance - find the closest facility
-    def get_nearest_travel_time(origin_lat, origin_lon, hospitals_gdf):
-        best_time = None
-        for _, hospital in hospitals_gdf.iterrows():
-            time = get_travel_time(
-                origin_lat, origin_lon,
-                hospital.geometry.y, hospital.geometry.x,
-            )
-            if time is not None:
-                if best_time is None or time < best_time:
-                    best_time = time
-        return best_time
-
-    # 4. CALCULATE ACCESSIBILITY FOR EACH ORP
-    # Same idea as Pandana's network.get_poi_distance()
-    print("Calculating travel times to nearest Emergency Care...")
-    census_wgs["travel_time_emergency"] = [
-        get_nearest_travel_time(row.centroid.y, row.centroid.x, emergency_wgs)
-        for _, row in census_wgs.iterrows()
-    ]
-
-    print("Calculating travel times to nearest Maternity Care...")
-    census_wgs["travel_time_maternity"] = [
-        get_nearest_travel_time(row.centroid.y, row.centroid.x, maternity_wgs)
-        for _, row in census_wgs.iterrows()
-    ]
-
-    # 5. ADD RESULTS BACK TO ORIGINAL GDF
-    census_gdf = census_gdf.copy()
-    census_gdf["travel_time_emergency"] = census_wgs["travel_time_emergency"].values
-    census_gdf["travel_time_maternity"] = census_wgs["travel_time_maternity"].values
+    print(f"Calculating travel times to {len(mat_dest)} Maternity Care sites for {len(origins)} ORPs...")
+    census_gdf["travel_time_maternity"] = get_min_travel_times_batched(origins, mat_dest, batch_size)
 
     return census_gdf
