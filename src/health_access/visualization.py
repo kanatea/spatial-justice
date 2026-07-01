@@ -15,11 +15,7 @@ def create_cluster_map(
     show_legend=False, 
     title="Cluster Map"
 ):
-    # these two lines are not needed - the output gets saved into visualizations folder
-    # IS THAT RIGHT? CAN WE DELETE IT?
-    # processed_dir = project_root / "data/transformed"
-    # processed_dir.mkdir(parents=True, exist_ok=True)
-    
+  
     # Dynamic filename based on whether points are included
     suffix = "with_points" if with_points else "no_points"
     output_path = project_root / f"visualizations/map_clusters_{n_clusters}_{suffix}.png"
@@ -74,12 +70,6 @@ def create_cluster_map(
     plt.close()
     return output_path
 
-## should add something for the legend, poitn colors are not explained right now
-
-
-
-
-## DID NOT PLUG THIS INTO MAIN YET, JUST COPIED AND PASTED FROM ACCESSIBILITY PROJ
 
 def plot_accessibility_map(
     gdf:          gpd.GeoDataFrame,
