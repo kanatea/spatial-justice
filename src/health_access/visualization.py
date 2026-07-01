@@ -88,6 +88,7 @@ def plot_accessibility_map(
     title:        str,
     poi_type:     str,
     cmap:         str,
+    show_legend:  bool = True,
 ) -> plt.Figure:
     """
     Choropleth map of an accessibility metric across districts.
@@ -100,7 +101,7 @@ def plot_accessibility_map(
     gdf.plot(
         column=column,
         cmap="RdYlGn_r",
-        legend=True,
+        legend=show_legend,
         legend_kwds={
             "label": "Travel time (minutes)",
             "shrink": 0.6,
@@ -140,6 +141,7 @@ def plot_access_vs_socio(
     district_col: str,
     poi_type:     str,
     max_distance: float,
+    show_legend:  bool = True,
 ) -> plt.Figure:
     """
     Scatter plot of mean accessibility distance vs socioeconomic index.
@@ -187,17 +189,18 @@ def plot_access_vs_socio(
     ax.set_xlabel(f"Mean distance to nearest {poi_type} (meters)", fontsize=11)
     ax.set_ylabel(f"{socio_col} (%)", fontsize=11)
 
-    ax.legend(
-        handles=[
-            plt.Line2D([0], [0], color="grey", linestyle="--", linewidth=0.8,
-                       label="Median (dashed lines)"),
-            plt.Line2D([0], [0], marker="o", color="w", markerfacecolor="steelblue",
-                       markersize=8, label="ORP unit"),
-        ],
-        loc="lower right",
-        fontsize=8,
-        frameon=True,
-    )
+    if show_legend:
+        ax.legend(
+            handles=[
+                plt.Line2D([0], [0], color="grey", linestyle="--", linewidth=0.8,
+                        label="Median (dashed lines)"),
+                plt.Line2D([0], [0], marker="o", color="w", markerfacecolor="steelblue",
+                        markersize=8, label="ORP unit"),
+            ],
+            loc="lower right",
+            fontsize=8,
+            frameon=True,
+        )
 
     ax.set_title(
         f"Accessibility vs Socioeconomic Index\n"
