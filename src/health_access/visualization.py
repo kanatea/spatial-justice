@@ -140,11 +140,11 @@ def plot_access_vs_socio(
     (high distance + high poverty) are experiencing compound
     deprivation — the core spatial justice finding.
     """
-    data = gdf[[district_col, "mean_dist", socio_col]].dropna()
+    data = gdf[[district_col, "travel_time", socio_col]].dropna()
 
     fig, ax = plt.subplots(figsize=(9, 7))
     ax.scatter(
-        data["mean_dist"],
+        data["travel_time"],
         data[socio_col],
         color="steelblue",
         alpha=0.7,
@@ -157,26 +157,26 @@ def plot_access_vs_socio(
     for _, row in data.iterrows():
         ax.annotate(
             row[district_col],
-            xy=(row["mean_dist"], row[socio_col]),
+            xy=(row["travel_time"], row[socio_col]),
             fontsize=7,
             xytext=(4, 4),
             textcoords="offset points",
         )
 
     # quadrant lines at medians
-    ax.axvline(data["mean_dist"].median(), color="grey",
+    ax.axvline(data["travel_time"].median(), color="grey",
                linestyle="--", linewidth=0.8, alpha=0.6)
     ax.axhline(data[socio_col].median(), color="grey",
                linestyle="--", linewidth=0.8, alpha=0.6)
 
     # annotate quadrants
-    xmax = data["mean_dist"].max()
+    xmax = data["travel_time"].max()
     ymax = data[socio_col].max()
     ax.text(xmax * 0.98, ymax * 0.98, "Compound\ndeprivation",
             ha="right", va="top", fontsize=8,
             color="red", alpha=0.7)
     
-    ax.set_xlabel(f"Mean distance to nearest {poi_type} (meters)", fontsize=11)
+    ax.set_xlabel(f"Travel time to nearest {poi_type} (minutes)", fontsize=11)
     ax.set_ylabel(f"{socio_col} (%)", fontsize=11)
 
     if show_legend:
@@ -264,7 +264,7 @@ def plot_network_accessibility(
 
     plt.colorbar(
         sc, ax=ax,
-        label="meters" if "dist" in column else "count",
+        label="minutes" if "dist" in column else "count",
         shrink=0.5,
         pad=0.01,
     )
