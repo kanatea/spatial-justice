@@ -194,7 +194,7 @@ def plot_access_vs_socio(
 
     ax.set_title(
         f"Accessibility vs Socioeconomic Index\n"
-        f"{poi_type.capitalize()} within {max_distance}m — Czech Republic",
+        f"{poi_type.capitalize()} within {max_distance}minutes — Czech Republic",
         fontsize=12
     )
     return fig
@@ -240,7 +240,7 @@ def plot_network_accessibility(
 
     if title is None:
         label = "Distance to nearest POI (m)" if "dist" in column else "Opportunities"
-        title = f"Network Accessibility — {label}\n{poi_type.capitalize()} within {max_distance}m — Czech Republic"
+        title = f"Network Accessibility — {label}\n{poi_type.capitalize()} within {max_distance}min — Czech Republic"
 
     fig, ax = plt.subplots(figsize=(12, 12))
 
