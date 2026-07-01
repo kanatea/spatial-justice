@@ -16,6 +16,8 @@ def get_travel_time_matrix(origins, destinations, costing="auto"):
         "costing": costing,
     }
     r = requests.post(f"{VALHALLA_URL}/sources_to_targets", json=body, timeout=60)
+    if r.status_code != 200:
+        print("Valhalla error response:", r.text)
     r.raise_for_status()
     data = r.json()["sources_to_targets"]
     return [
@@ -24,11 +26,15 @@ def get_travel_time_matrix(origins, destinations, costing="auto"):
     ]
 
 
-def get_min_travel_times_batched(origins, destinations, batch_size=50, costing="auto"):
+def get_min_travel_times_batched(origins, destinations, batch_size=None, costing="auto", max_matrix_locations=2500):
     """
     Chunks origins into batches to stay under Valhalla's matrix size limits.
     Returns a flat list: min travel time per origin, in original order.
     """
+    if batch_size is None:
+        batch_size = max(1, max_matrix_locations // len(destinations))
+        print(f"  auto batch_size = {batch_size} (destinations: {len(destinations)})")
+
     results = []
     for i in range(0, len(origins), batch_size):
         chunk = origins[i:i + batch_size]
@@ -40,7 +46,7 @@ def get_min_travel_times_batched(origins, destinations, batch_size=50, costing="
     return results
 
 
-def calculate_health_accessibility(census_gdf, emergency_gdf, maternity_gdf, batch_size=50):
+def calculate_health_accessibility(census_gdf, emergency_gdf, maternity_gdf, batch_size=None):
     """
     census_gdf:    The GDF containing ORP/census data
     emergency_gdf: The GDF of Emergency care points
