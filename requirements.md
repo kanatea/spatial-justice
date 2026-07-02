@@ -24,7 +24,6 @@
 - Calculate the travel time distance to emergency / maternity units
 - Calculate the average times per clusters
 
-
 5. Visualizations
 - Visualizing the outcomes of each step along the way
 A1) Clusters A2) Clusters with emergency/materninty points
