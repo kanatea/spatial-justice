@@ -1,9 +1,16 @@
 import geopandas as gpd
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from pathlib import Path
 import pandas as pd
 import osmnx as ox
+
+
+#======================================================================================
+# CLUSTER MAP
+#=======================================================================================
+
 
 def create_cluster_map(
     gdf, 
@@ -71,6 +78,128 @@ def create_cluster_map(
     return output_path
 
 
+
+
+
+
+#======================================================================================
+# CARE CENTER DENSITY WITHIN EACH CLUSTER
+#=======================================================================================
+def visualize_cluster_metrics(file, viz_dir):
+    """
+    Iterates through each cluster GeoJSON and creates 6 maps:
+    Emergency (Count/Dens), Maternity (Count/Dens), Combined (Count/Dens)
+    """
+    gdf = gpd.read_file(file)
+    cluster_id = file.stem # e.g., "cluster_0"
+    
+    # 1. Calculate Metrics
+    pop = gdf['POCET_OBYV'].replace(0, 1) 
+    gdf['COUNT_TOTAL'] = gdf['COUNT_EMERGENCY'] + gdf['COUNT_MATERNITY']
+    gdf['dens_emergency'] = (gdf['COUNT_EMERGENCY'] / pop) * 1000
+    gdf['dens_maternity'] = (gdf['COUNT_MATERNITY'] / pop) * 1000
+    gdf['dens_combined'] = (gdf['COUNT_TOTAL'] / pop) * 1000
+    
+    tasks = [
+        ('COUNT_EMERGENCY', 'Emergency Count', 'emerg_count'),
+        ('dens_emergency', 'Emergency Density (per 1k)', 'emerg_dens'),
+        ('COUNT_MATERNITY', 'Maternity Count', 'mat_count'),
+        ('dens_maternity', 'Maternity Density (per 1k)', 'mat_dens'),
+        ('COUNT_TOTAL', 'Combined Count', 'comb_count'),
+        ('dens_combined', 'Combined Density (per 1k)', 'comb_dens'),
+    ]
+
+
+    # Plotting loop
+    for col, title, suffix in tasks:
+        fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+        # Use a sequential colormap (e.g.,  'RdYlGn' (Red-Yellow-Green) Red = Low Density/Poor Access)
+        gdf.plot(
+            column=col, 
+            ax=ax, 
+            legend=True, 
+            cmap='RdYlGn', 
+            scheme='quantiles', 
+            k=4,
+            legend_kwds={'fmt': "{:.2f}"}
+        )
+        ax.set_title(f"{cluster_id} - {title}")
+        ax.axis('off')
+        
+        # Save to /visualizations/cluster_viz/cluster_X_suffix.png
+        save_path = viz_dir / f"{cluster_id}_{suffix}.png"
+        plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        plt.close(fig)
+
+
+# Main Execution Logic
+def run_cluster_viz(clusters_dir, viz_dir):
+    """
+    Finds all cluster files and triggers the worker function for each.
+    """
+    clusters_dir = Path(clusters_dir)
+    viz_dir = Path(viz_dir)
+    viz_dir.mkdir(parents=True, exist_ok=True)
+    cluster_files = list(clusters_dir.glob("cluster_*.geojson"))
+    
+    for file in cluster_files:
+        print(f"Processing visualizations for {file.name}...")
+        visualize_cluster_metrics(file, viz_dir)
+
+
+
+
+#======================================================================================
+# MORAN VIZ
+#=======================================================================================
+def plot_lisa_overlay(gdf_clustered, lisa_results, output_path):
+    fig, ax = plt.subplots(figsize=(12, 12))
+    
+    if 'lisa_cluster' not in gdf_clustered.columns:
+        category_map = {0: 'Insignificant', 1: 'Hotspot (HH)', 2: 'Low-High (LH)', 3: 'Coldspot (LL)', 4: 'High-Low (HL)'}
+        gdf_clustered['lisa_cluster'] = [category_map[val] for val in lisa_results.q]
+
+    # 1. Plot the socio-economic clusters as the base layer
+    gdf_clustered.plot(
+        column='cluster', 
+        ax=ax, 
+        cmap='Pastel1', 
+        legend=True, 
+        legend_kwds={'label': "Socio-Economic Cluster"}
+    )
+    
+    # 2. Filter the Coldspots
+    coldspots = gdf_clustered[gdf_clustered['lisa_cluster'] == 'Coldspot (LL)']
+    
+    # 3. Overlay the Coldspots
+    if not coldspots.empty:
+        coldspots.plot(
+            ax=ax, 
+            color='red', 
+            edgecolor='black', 
+            linewidth=1
+        )
+        
+        # 4. FIX: Create a manual proxy artist for the legend
+        # This creates a small red square for the legend without needing to link it to the plot
+        red_patch = mpatches.Patch(facecolor='red', edgecolor='black', label='Healthcare Desert (Coldspot)')
+        plt.legend(handles=[red_patch])
+    else:
+        # If no coldspots, we still want the socio-economic legend to show, 
+        # but we don't need the red patch.
+        plt.legend()
+    
+    plt.title("Spatial Justice: Healthcare Deserts vs. Socio-Economic Clusters")
+    plt.savefig(output_path)
+    plt.close()
+
+
+
+#======================================================================================
+# ACCESSIBILITY
+#=======================================================================================
+
+
 def plot_accessibility_map(
     gdf:          gpd.GeoDataFrame,
     column:       str,
@@ -123,6 +252,7 @@ def plot_accessibility_map(
     )
     ax.set_axis_off()
     return fig
+
 
 
 def plot_access_vs_socio(
@@ -200,6 +330,7 @@ def plot_access_vs_socio(
     return fig
 
 
+
 def plot_network_accessibility(
     gdf:           gpd.GeoDataFrame,
     graph,
@@ -272,3 +403,9 @@ def plot_network_accessibility(
     ax.set_title(title, fontsize=13, pad=12)
     ax.set_axis_off()
     return fig
+
+
+
+
+
+

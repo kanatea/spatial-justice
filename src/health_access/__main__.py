@@ -6,9 +6,9 @@ from pathlib import Path
 
 from health_access.a_preprocessing import transform_projections, standardize_data, aggregate_poi
 from health_access.b_clustering import apply_clustering, export_clusters_separately
-# later import the Moran's I
+from health_access.c_analysis_moran import create_weights_matrices, build_morans_table, compute_lisa
 from health_access.d_analysis_accessibility import calculate_health_accessibility
-from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, plot_network_accessibility
+from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, plot_network_accessibility, run_cluster_viz, plot_lisa_overlay
 
 logging.basicConfig(
     level=logging.INFO,
@@ -99,8 +99,13 @@ def main(
     transformed_dir = project_root / "data/transformed"
     input_file = transformed_dir / filename
     census_output = transformed_dir / "data_variables.geojson"
-    clustered_output = project_root / f"data/processed/clusters_{n_clusters}.geojson"
-    access_output = project_root / f"data/processed/accessibility_{n_clusters}.geojson"
+    processed_dir = project_root / "data/processed"
+    clusters_dir = processed_dir / "clusters"
+    clustered_output = processed_dir / f"clusters_{n_clusters}.geojson"
+    spatial_dir = processed_dir / "spatial_analysis"
+    access_output = processed_dir / f"accessibility_{n_clusters}.geojson"
+    viz_dir = project_root/"visualizations"
+    viz_cluster_output = viz_dir / "cluster_viz"
 
    # 1. PREPROCESSING: Transform (reproject) all raw files to EPSG:5514
     if not skip_transform:
@@ -158,6 +163,12 @@ def main(
             clusters_dir.mkdir(parents=True, exist_ok=True)
             export_clusters_separately(gdf_clustered, clusters_dir)
         
+            #logger.info("Generating detailed density visualizations for each cluster...")
+            #run_cluster_viz(
+            #    clusters_dir=clusters_dir, 
+            #    viz_dir=viz_cluster_output
+            #)
+
         else:
             logger.error("Variables file missing. Skipping clustering.")
             return  # Exit the function if the variables file is missing
@@ -192,7 +203,59 @@ def main(
     # logger.error("Variables file missing. Skipping Clustering and Visualization.")
 
 
-    # 3. ACCESSIBILITY ANALYSIS
+
+    # 3. INTRA-CLUSTER SPATIAL ANALYSIS 
+    # Analyzing patterns WITHIN each cluster
+    #if not skip_clustering: # Only run if clustering was performed
+    logger.info("Step 3: Global Spatial Analysis (Healthcare Desert Detection)...")
+        
+    try:
+            # A. Define the Justice Metric (Per Capita Density)
+            # Using the population column POCET_OBYV from your logic
+            population = gdf_clustered['POCET_OBYV'].replace(0, 1)
+            gdf_clustered['EMERGENCY_PER_CAPITA'] = (gdf_clustered['COUNT_EMERGENCY'] / population) * 1000
+            gdf_clustered['MATERNITY_PER_CAPITA'] = (gdf_clustered['COUNT_MATERNITY'] / population) * 1000
+            gdf_clustered['TOTAL_PER_CAPITA'] = (gdf_clustered['COUNT_TOTAL_CARE'] / population) * 1000
+
+            target_col = "EMERGENCY_PER_CAPITA" #can be maternity or total 
+            
+            # B. Create Weights for the entire city
+            # This ensures we find clusters of low-access regardless of socio-economic status
+            weights = create_weights_matrices(gdf_clustered)
+            queen_w = weights["Queen"]
+            
+            # C. Global Moran's I
+            # Tells us if health access is generally clustered or random across the city
+            moran_table = build_morans_table(gdf_clustered, weights, target_col) #NEED TO ADD FLAG
+            moran_table.to_csv(spatial_dir / "global_moran_results.csv", index=False)
+            
+            # D. LISA (Local Indicators of Spatial Association)
+            # This identifies the actual "Coldspots" (Low-Low)
+            lisa_gdf, lisa_obj = compute_lisa(gdf_clustered, queen_w, target_col) #NEED TO ADD FLAG
+
+            # Save the results. Use the GDF (lisa_gdf) for the file export
+            lisa_output = spatial_dir / "global_lisa_results.geojson"
+            lisa_gdf.to_file(lisa_output, driver="GeoJSON")
+
+            logger.info(f"Spatial analysis complete. Results saved to: {lisa_output}")
+
+           
+            # Now call the visualization function
+            plot_lisa_overlay(
+                gdf_clustered=lisa_gdf, 
+                lisa_results=lisa_obj,  
+                output_path=viz_dir / f"lisa_overlay_{n_clusters}.png"
+            )
+                    
+    except Exception as e:
+        logger.error(f"Spatial analysis failed: {e}")
+            #else:
+            #        logger.error("Clustered file missing. Skipping spatial analysis.")
+
+
+
+
+    # 4. ACCESSIBILITY ANALYSIS
     # RUNS USING VALHALLA - WE NEED TO ACTIVATE THAT USING DOCKER
     # we could divide this step into a separate script OR have at least separated some steps - the user could choose only some of them using flags.
     if not skip_accessibility:

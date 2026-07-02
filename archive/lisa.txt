@@ -1,0 +1,48 @@
+if clustered_output.exists():
+            logger.info("Starting Intra-Cluster Spatial Analysis...")
+            gdf_clustered = gpd.read_file(clustered_output)
+            
+            unique_clusters = gdf_clustered['cluster'].unique()
+            
+            for cluster_id in unique_clusters:
+                logger.info(f"Analyzing Cluster {cluster_id}...")
+                
+                # Isolate the specific cluster
+                cluster_gdf = gdf_clustered[gdf_clustered['cluster'] == cluster_id].copy()
+                
+                # Spatial analysis requires a minimum number of neighbors to be statistically valid
+                if len(cluster_gdf) < 10:
+                    logger.warning(f"Cluster {cluster_id} too small for LISA analysis. Skipping.")
+                    continue
+                
+                try:
+                    # replace(0, 1) prevents DivisionByZero errors
+                    population = cluster_gdf['POCET_OBYV'].replace(0, 1)
+        
+                    # Create a new temporary column for the analysis
+                    # Metric: Clinics per 1,000 people (multiplying by 1000 makes the numbers readable)
+                    cluster_gdf['EMERGENCY_PER_CAPITA'] = (cluster_gdf['COUNT_EMERGENCY'] / population) * 1000
+                    cluster_gdf['MATERNITY_PER_CAPITA'] = (cluster_gdf['COUNT_MATERNITY'] / population) * 1000
+        
+                    # Now we use the PER CAPITA column as our target, not the raw count
+                    target_col = "EMERGENCY_PER_CAPITA"
+                    
+                    # Create weights matrix specifically for the geometry of THIS cluster
+                    # This ensures we are comparing neighbors within the same socio-economic profile
+                    weights = create_weights_matrices(cluster_gdf)
+                    queen_w = weights["Queen"]
+                    
+                    # Compute Global Moran's I for this cluster
+                    # This tells us if health access is clustered or dispersed within this specific neighborhood type
+                    moran_table = build_morans_table(cluster_gdf, weights, target_col)
+                    moran_table.to_csv(spatial_dir / f"moran_cluster_{cluster_id}.csv", index=False)
+                    
+                    # Compute LISA (Local Indicators of Spatial Association)
+                    # This identifies the "Coldspots" (Healthcare Deserts) within the cluster
+                    lisa_results = compute_lisa(cluster_gdf, queen_w, target_col)
+                    lisa_results.to_file(spatial_dir / f"lisa_cluster_{cluster_id}.geojson", driver="GeoJSON")
+                    
+                except Exception as e:
+                    logger.error(f"Error analyzing cluster {cluster_id}: {e}")
+
+            logger.info(f"Intra-cluster spatial analysis complete. Results saved to: {spatial_dir}")
