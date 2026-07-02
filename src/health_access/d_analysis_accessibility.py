@@ -1,9 +1,15 @@
 import requests
 import geopandas as gpd
-# import pandas as pd
-
+import time
 
 VALHALLA_URL = "http://localhost:8002"
+
+"""
+Calculates travel time matrices using the Valhalla routing engine.
+Instead of downloading a road network like Pandana,
+this version sends routing requests to Valhalla running locally in Docker.
+Returns travel time in minutes instead of distance in metres.
+"""
 
 def get_travel_time_matrix(origins, destinations, costing="auto"):
     """
@@ -25,24 +31,32 @@ def get_travel_time_matrix(origins, destinations, costing="auto"):
         for row in data
     ]
 
-def get_travel_time_matrix_safe(origins, destinations, costing="auto"):
+def get_travel_time_matrix_safe(origins, destinations, costing="auto", max_retries=3):
     """
-    Tries the batch; if Valhalla rejects it or times out, recursively splits origins
+    Tries the batch - if Valhalla rejects it or times out, recursively splits origins
     in half until the offending pair is isolated (marked None) instead
     of failing the whole batch.
+    HTTPError (400, e.g. distance-limit rejection) --> genuinely unroutable, split and isolate.
+    ConnectionError/Timeout (server down/restarting) --> wait and retry, don't mark None.
     """
-    try:
-        return get_travel_time_matrix(origins, destinations, costing=costing)
-    except requests.exceptions.RequestException as e:
-        if len(origins) == 1:
-            # this single origin has no valid route to ANY destination in range
-            print(f"  !! unroutable origin, marking None: {origins[0]} ({type(e).__name__})")
-            return [[None] * len(destinations)]
-        mid = len(origins) // 2
-        left  = get_travel_time_matrix_safe(origins[:mid], destinations, costing)
-        right = get_travel_time_matrix_safe(origins[mid:], destinations, costing)
-        return left + right
-
+    for attempt in range(max_retries):
+        try:
+            return get_travel_time_matrix(origins, destinations, costing=costing)
+        except requests.exceptions.HTTPError:
+            if len(origins) == 1:
+                print(f"  !! unroutable origin, marking None: {origins[0]}")
+                return [[None] * len(destinations)]
+            mid = len(origins) // 2
+            left  = get_travel_time_matrix_safe(origins[:mid], destinations, costing)
+            right = get_travel_time_matrix_safe(origins[mid:], destinations, costing)
+            return left + right
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            wait = 10 * (attempt + 1)
+            print(f"  !! server unavailable ({type(e).__name__}), waiting {wait}s and retrying... (attempt {attempt+1}/{max_retries})")
+            time.sleep(wait)
+        
+    print(f"  !! giving up after {max_retries} retries for {len(origins)} origins — marking all None")
+    return [[None] * len(destinations) for _ in origins]
 
 def get_min_travel_times_batched(origins, destinations, batch_size=10, costing="auto", max_matrix_locations=2500):
     """
@@ -51,7 +65,7 @@ def get_min_travel_times_batched(origins, destinations, batch_size=10, costing="
     """
     if batch_size is None:
         batch_size = max(1, max_matrix_locations // len(destinations)) # this ensures that we don't exceed the max matrix size and the system doesn't crash.
-        print(f"  auto batch_size = {batch_size} (destinations: {len(destinations)})")
+        print(f" auto batch_size = {batch_size} (destinations: {len(destinations)})")
 
     results = []
     for i in range(0, len(origins), batch_size):
@@ -69,10 +83,6 @@ def calculate_health_accessibility(census_gdf, emergency_gdf, maternity_gdf, bat
     census_gdf:    The GDF containing ORP/census data
     emergency_gdf: The GDF of Emergency care points
     maternity_gdf: The GDF of Maternity care points
-
-    Instead of downloading a road network like Pandana,
-    this version sends routing requests to Valhalla running locally in Docker.
-    Returns travel time in minutes instead of distance in metres.
     """
     census_gdf = census_gdf.copy()
     # Centroid computed in metric CRS, then reprojected to WGS84 = more accurate than computing centroid in WGS84 directly
