@@ -41,7 +41,7 @@ def create_cluster_map(
     # OVERLAY POINTS
     point_handles = []
     if with_points and point_mapping and points_dir:
-        point_colors = {"OD_emergency_care.geojson": "red", "OD_maternity_care.geojson": "blue"}
+        point_colors = {"OD_emergency_care.geojson": "black", "OD_maternity_care.geojson": "violet"}
         
         for filename, label in point_mapping.items():
             p_path = points_dir / filename

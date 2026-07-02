@@ -1,8 +1,10 @@
 import logging
 import geopandas as gpd
+import pandas as pd
 from pathlib import Path
 from glob import glob
 from typing import Union, List, Dict
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -54,12 +56,16 @@ def transform_projections(raw_dir: Union[str, Path], transformed_dir: Union[str,
 
 def standardize_data(input_path: Path, output_path: Path):
     """
-    Reads ORP census data and calculates demographic variables.
+    Calculates demographic variables and scales them using MinMaxScaler 
+    to ensure all features contribute equally to the clustering.
     """
     # Load data
     gdf = gpd.read_file(input_path)
 
     # --- CALCULATIONS ---
+    # We calculate the ratios first because scaling raw counts would 
+    # bias the clustering toward larger districts.
+
     # Area in km²
     gdf["AREA_KM2"] = gdf["SHAPE_Area"] / 1_000_000
 
@@ -83,6 +89,37 @@ def standardize_data(input_path: Path, output_path: Path):
     # Migration Balance
     gdf["MIG_BAL"] = gdf["PRISTEHOVALI"] - gdf["VYSTEHOVALI"]
     gdf["MIG_BAL_RATE"] = (gdf["MIG_BAL"] / gdf["POCET_OBYV"]) * 1000
+
+    
+    # --- MIN-MAX SCALING ---
+    # Define the columns that will be used for clustering
+    cols_to_scale = [
+        "POP_DENS", "PCT_WOMEN", "PCT_CHILD", 
+        "PCT_WORKING", "PCT_ELDERLY", "AGEING_INDEX", 
+        "DEPENDENCY", "NATURAL_INC_RATE", "MIG_BAL_RATE"
+    ]
+
+    # Scale the data, StandardScaler is a feature from scikit-learn
+    #scaler = StandardScaler()
+    #X_scaled = scaler.fit_transform(X)
+    #logger.info(f"Data scaled successfully using {len(features)} features.")
+
+    # Initialize the Scaler
+    scaler = StandardScaler()
+
+    # Apply scaling. 
+    # We create new columns with a '_scaled' suffix to keep the original values for analysis/mapping
+    scaled_values = scaler.fit_transform(gdf[cols_to_scale])
+    
+    # Create a DataFrame from scaled values and join it back to the GDF
+    scaled_df = pd.DataFrame(
+        scaled_values, 
+        columns=[f"{col}_scaled" for col in cols_to_scale], 
+        index=gdf.index
+    )
+    
+    #The concat function (short for concatenate) is used to join pandas objects.
+    gdf = pd.concat([gdf, scaled_df], axis=1)
 
     # Save the result
     gdf.to_file(output_path, driver="GeoJSON")
