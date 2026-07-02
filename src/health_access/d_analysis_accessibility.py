@@ -15,7 +15,7 @@ def get_travel_time_matrix(origins, destinations, costing="auto"):
         "targets": [{"lat": lat, "lon": lon} for lat, lon in destinations],
         "costing": costing,
     }
-    r = requests.post(f"{VALHALLA_URL}/sources_to_targets", json=body, timeout=60)
+    r = requests.post(f"{VALHALLA_URL}/sources_to_targets", json=body, timeout=120) # I had to rise the timeout to 120 seconds for large batches, otherwise Valhalla would time out and return an error.
     if r.status_code != 200:
         print("Valhalla error response:", r.text)
     r.raise_for_status()
@@ -25,28 +25,46 @@ def get_travel_time_matrix(origins, destinations, costing="auto"):
         for row in data
     ]
 
+def get_travel_time_matrix_safe(origins, destinations, costing="auto"):
+    """
+    Tries the batch; if Valhalla rejects it or times out, recursively splits origins
+    in half until the offending pair is isolated (marked None) instead
+    of failing the whole batch.
+    """
+    try:
+        return get_travel_time_matrix(origins, destinations, costing=costing)
+    except requests.exceptions.RequestException as e:
+        if len(origins) == 1:
+            # this single origin has no valid route to ANY destination in range
+            print(f"  !! unroutable origin, marking None: {origins[0]} ({type(e).__name__})")
+            return [[None] * len(destinations)]
+        mid = len(origins) // 2
+        left  = get_travel_time_matrix_safe(origins[:mid], destinations, costing)
+        right = get_travel_time_matrix_safe(origins[mid:], destinations, costing)
+        return left + right
 
-def get_min_travel_times_batched(origins, destinations, batch_size=None, costing="auto", max_matrix_locations=2500):
+
+def get_min_travel_times_batched(origins, destinations, batch_size=10, costing="auto", max_matrix_locations=2500):
     """
     Chunks origins into batches to stay under Valhalla's matrix size limits.
     Returns a flat list: min travel time per origin, in original order.
     """
     if batch_size is None:
-        batch_size = max(1, max_matrix_locations // len(destinations))
+        batch_size = max(1, max_matrix_locations // len(destinations)) # this ensures that we don't exceed the max matrix size and the system doesn't crash.
         print(f"  auto batch_size = {batch_size} (destinations: {len(destinations)})")
 
     results = []
     for i in range(0, len(origins), batch_size):
         chunk = origins[i:i + batch_size]
         print(f"  batch {i // batch_size + 1}: origins {i}-{i + len(chunk)}")
-        matrix = get_travel_time_matrix(chunk, destinations, costing=costing)
+        matrix = get_travel_time_matrix_safe(chunk, destinations, costing=costing)
         for row in matrix:
             valid = [t for t in row if t is not None]
             results.append(min(valid) if valid else None)
     return results
 
 
-def calculate_health_accessibility(census_gdf, emergency_gdf, maternity_gdf, batch_size=None):
+def calculate_health_accessibility(census_gdf, emergency_gdf, maternity_gdf, batch_size=10):
     """
     census_gdf:    The GDF containing ORP/census data
     emergency_gdf: The GDF of Emergency care points
