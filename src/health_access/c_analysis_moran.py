@@ -12,9 +12,9 @@ def create_weights_matrices(gdf) -> Dict:
     """
     logger.info("Creating spatial weights matrices...")
     return {
-        "Queen": libpysal.weights.Queen.from_dataframe(gdf),
-        "Rook": libpysal.weights.Rook.from_dataframe(gdf),
-        "KNN (k=5)": libpysal.weights.KNN.from_dataframe(gdf, k=5)
+        "Queen": libpysal.weights.Queen.from_dataframe(gdf, use_index=True),
+        "Rook": libpysal.weights.Rook.from_dataframe(gdf, use_index=True),
+        "KNN (k=5)": libpysal.weights.KNN.from_dataframe(gdf, k=5, use_index=True)
     }
 
 def compute_global_morans(gdf, w, variable: str) -> esda.Moran:
