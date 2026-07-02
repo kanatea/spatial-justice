@@ -46,6 +46,12 @@ def main(
         "-proj",
         help="EPSG Projection",
     ),
+    #target_col: int = typer.Option(
+    #    "EMERGENCY_PER_CAPITA",
+    #    "--target_moran_var",
+    #    "-moran",
+    #    help="Target variable for Moran's I analyses",
+    #),
     n_clusters: int = typer.Option(
         5, 
         "--n-clusters", 
@@ -83,10 +89,10 @@ def main(
         help="Skip accessibility analysis step."
         ),
     show_legend: bool = typer.Option(
-        False, 
-        "--legend", 
-        "-l", 
-        help="Add a legend to the cluster map." # is this just for the cluster map or all legends?
+        True, 
+        "--no_legend", 
+        "-nl", 
+        help="Add a legend to the cluster map." 
         ),
 ):
     
@@ -209,8 +215,8 @@ def main(
     logger.info("ESDA: Global Moran's and LISA analysis...")
         
     try:
-            # A. Define the Justice Metric (Per Capita Density)
-            # Using the population column POCET_OBYV from your logic
+            # A. Define Metric (Per Capita Density)
+            # Using the population column POCET_OBYV 
             population = gdf_clustered['POCET_OBYV'].replace(0, 1)
             gdf_clustered['EMERGENCY_PER_CAPITA'] = (gdf_clustered['COUNT_EMERGENCY'] / population) * 1000
             gdf_clustered['MATERNITY_PER_CAPITA'] = (gdf_clustered['COUNT_MATERNITY'] / population) * 1000
