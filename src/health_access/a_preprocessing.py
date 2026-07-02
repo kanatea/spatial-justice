@@ -90,6 +90,7 @@ def standardize_data(input_path: Path, output_path: Path):
     gdf["MIG_BAL"] = gdf["PRISTEHOVALI"] - gdf["VYSTEHOVALI"]
     gdf["MIG_BAL_RATE"] = (gdf["MIG_BAL"] / gdf["POCET_OBYV"]) * 1000
 
+
     
     # --- MIN-MAX SCALING ---
     # Define the columns that will be used for clustering
@@ -169,5 +170,13 @@ def aggregate_poi(boundary_gdf: gpd.GeoDataFrame, point_mapping: Dict[str, str],
     # Ensure all count columns are integers
     count_cols = list(point_mapping.values()) + ['COUNT_TOTAL_CARE']
     df_result[count_cols] = df_result[count_cols].fillna(0).astype(int)
+
+    # A. Define Metric (Per Capita Density)
+    # Using the population column POCET_OBYV 
+    #population = df_result['POCET_OBYV'].replace(0, 1)
+    #df_result['EMERGENCY_PER_CAPITA'] = (df_result['COUNT_EMERGENCY'] / population) * 1000
+    #df_result['MATERNITY_PER_CAPITA'] = (df_result['COUNT_MATERNITY'] / population) * 1000
+    #df_result['TOTAL_PER_CAPITA'] = (df_result['COUNT_TOTAL_CARE'] / population) * 1000
+
     
     return df_result

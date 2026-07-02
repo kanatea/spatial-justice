@@ -182,14 +182,14 @@ def plot_lisa_overlay(gdf_clustered, lisa_results, output_path):
         
         # 4. FIX: Create a manual proxy artist for the legend
         # This creates a small red square for the legend without needing to link it to the plot
-        red_patch = mpatches.Patch(facecolor='red', edgecolor='black', label='Healthcare Desert (Coldspot)')
+        red_patch = mpatches.Patch(facecolor='red', edgecolor='black', label='Care Center Desert (Coldspot)')
         plt.legend(handles=[red_patch])
     else:
         # If no coldspots, we still want the socio-economic legend to show, 
         # but we don't need the red patch.
         plt.legend()
     
-    plt.title("Spatial Justice: Healthcare Deserts vs. Socio-Economic Clusters")
+    plt.title("Care Center Deserts vs. Socio-Economic Clusters")
     plt.savefig(output_path)
     plt.close()
 
