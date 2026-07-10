@@ -14,6 +14,7 @@ import osmnx as ox
 
 def create_cluster_map(
     gdf, 
+    basemap_gdf,
     project_root, 
     n_clusters, 
     with_points=False, 
@@ -29,13 +30,16 @@ def create_cluster_map(
     output_path.parent.mkdir(parents=True, exist_ok=True) # Ensure the directory exists
 
     fig, ax = plt.subplots(figsize=(12, 10))
-    
+
+    #plot the clusters
+    basemap_gdf.plot(ax=ax, color='#f2f2f2', edgecolor='#d9d9d9', linewidth=0.5)
+
     clusters = sorted(gdf['cluster'].unique())
     colors = ["#e6194b", "#4363d8", "#f58231", "#3cb44b", "#ffe119", "#f032e6", "#911eb4", "#42d4f4", "#a9a9a9"][:len(clusters)]
     color_map = {cluster: color for cluster, color in zip(clusters, colors)}
     gdf['color'] = gdf['cluster'].map(color_map)
 
-    # Plot the clusters
+    # Plot the clusters on top of the grey basemap
     gdf.plot(color=gdf['color'], legend=False, ax=ax, edgecolor='white', linewidth=0.5)
 
     # OVERLAY POINTS
@@ -85,7 +89,7 @@ def create_cluster_map(
 #======================================================================================
 # CARE CENTER DENSITY WITHIN EACH CLUSTER
 #=======================================================================================
-def visualize_cluster_metrics(file, viz_dir):
+def visualize_cluster_metrics(file, viz_dir, basemap_gdf):
     """
     Iterates through each cluster GeoJSON and creates 6 maps:
     Emergency (Count/Dens), Maternity (Count/Dens), Combined (Count/Dens)
@@ -93,20 +97,13 @@ def visualize_cluster_metrics(file, viz_dir):
     gdf = gpd.read_file(file)
     cluster_id = file.stem # e.g., "cluster_0"
     
-    # 1. Calculate Metrics
-    pop = gdf['POCET_OBYV'].replace(0, 1) 
-    gdf['COUNT_TOTAL'] = gdf['COUNT_EMERGENCY'] + gdf['COUNT_MATERNITY']
-    gdf['dens_emergency'] = (gdf['COUNT_EMERGENCY'] / pop) * 1000
-    gdf['dens_maternity'] = (gdf['COUNT_MATERNITY'] / pop) * 1000
-    gdf['dens_combined'] = (gdf['COUNT_TOTAL'] / pop) * 1000
-    
     tasks = [
         ('COUNT_EMERGENCY', 'Emergency Count', 'emerg_count'),
-        ('dens_emergency', 'Emergency Density (per 1k)', 'emerg_dens'),
+        ('EMERGENCY_PER_CAPITA', 'Emergency Density (per 10k)', 'emerg_dens'),
         ('COUNT_MATERNITY', 'Maternity Count', 'mat_count'),
-        ('dens_maternity', 'Maternity Density (per 1k)', 'mat_dens'),
-        ('COUNT_TOTAL', 'Combined Count', 'comb_count'),
-        ('dens_combined', 'Combined Density (per 1k)', 'comb_dens'),
+        ('MATERNITY_PER_CAPITA', 'Maternity Density (per 10k)', 'mat_dens'),
+        ('COUNT_TOTAL_CARE', 'Combined Count', 'comb_count'),
+        ('TOTAL_PER_CAPITA', 'Combined Density (per 10k)', 'comb_dens'),
     ]
 
 
@@ -114,6 +111,8 @@ def visualize_cluster_metrics(file, viz_dir):
     for col, title, suffix in tasks:
         fig, ax = plt.subplots(1, 1, figsize=(8, 8))
         # Use a sequential colormap (e.g.,  'RdYlGn' (Red-Yellow-Green) Red = Low Density/Poor Access)
+        basemap_gdf.plot(ax=ax, color='#f2f2f2', edgecolor='#d9d9d9', linewidth=0.5)
+        
         gdf.plot(
             column=col, 
             ax=ax, 
@@ -133,7 +132,7 @@ def visualize_cluster_metrics(file, viz_dir):
 
 
 # Main Execution Logic
-def run_cluster_viz(clusters_dir, viz_dir):
+def run_cluster_viz(clusters_dir, viz_dir, basemap_gdf):
     """
     Finds all cluster files and triggers the worker function for each.
     """
@@ -144,7 +143,7 @@ def run_cluster_viz(clusters_dir, viz_dir):
     
     for file in cluster_files:
         print(f"Processing visualizations for {file.name}...")
-        visualize_cluster_metrics(file, viz_dir)
+        visualize_cluster_metrics(file, viz_dir, basemap_gdf)
 
 
 

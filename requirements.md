@@ -6,8 +6,8 @@
 - Aggregate POIs - calculate count and density (total population) of hospital points for ORPs (districts) - by adding a column
 
 2. Clustering
-- Perform K-Means clustering using 9 census parameters
-- Create a table to visualize characterics of each cluster
+- Perform K-Means clustering using 9 census parameters. 
+- Create a table to visualize characterics of each cluster - justification for each cluster / characteristics
 (Urban, suburban, ?rural?, semi-peripheral, peripheral)
 - Visualize clusters
 - Create separate geojsons for each cluster
@@ -30,3 +30,4 @@ A1) Clusters A2) Clusters with emergency/materninty points
 B) LISA results (emergency / materninty / combined)
 C1) Accessibility (time_travel) ranking of ORPs within each cluster / inbetween clusters
 C2) Accessibility comparison between emergency and materninty units --> calculate a "time gap"
+
