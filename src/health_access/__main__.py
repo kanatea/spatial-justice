@@ -196,14 +196,6 @@ def main(
             clusters_dir.mkdir(parents=True, exist_ok=True)
             export_clusters_separately(gdf_clustered, clusters_dir)
         
-            logger.info("Generating detailed density visualizations for each cluster...")
-            run_cluster_viz(
-                clusters_dir=clusters_dir, 
-                viz_dir=viz_cluster_output
-            )
-
-            logger.info("Generating detailed density visualizations for each cluster...")
-        
         else:
             logger.error("Variables file missing. Skipping clustering.")
             return  # Exit the function if the variables file is missing
@@ -214,15 +206,6 @@ def main(
     if not skip_clustering_viz:
         logger.info("Generating cluster map...")
 
-        gdf_clustered = gpd.read_file(clustered_output)
-        gdf_vars = gpd.read_file(census_output)
-
-        run_cluster_viz(
-                clusters_dir = clusters_dir, 
-                viz_dir = viz_cluster_output,
-                basemap_gdf = gdf_vars
-        )
-        
         saved_map_path = create_cluster_map(
             gdf = gdf_clustered,
             basemap_gdf = gdf_vars,
@@ -230,6 +213,17 @@ def main(
             n_clusters = n_clusters,
             show_legend = show_legend,
             title = "ORP Clusters based on 9 Selected Variables"
+        )
+
+        gdf_clustered = gpd.read_file(clustered_output)
+        gdf_vars = gpd.read_file(census_output)
+
+        logger.info("Generating detailed density visualizations for each cluster...")
+
+        run_cluster_viz(
+                clusters_dir = clusters_dir, 
+                viz_dir = viz_cluster_output,
+                basemap_gdf = gdf_vars
         )
 
         # Image B: Clusters + Points
