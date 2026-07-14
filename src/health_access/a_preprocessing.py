@@ -93,7 +93,7 @@ def standardize_data(input_path: Path, output_path: Path):
 
 
     
-    # --- MIN-MAX SCALING ---
+    # --- SCALING
     # Define the columns that will be used for clustering
     cols_to_scale = [
         "POP_DENS", "PCT_WOMEN", "PCT_CHILD", 

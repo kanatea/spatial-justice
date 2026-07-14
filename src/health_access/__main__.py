@@ -5,7 +5,7 @@ import typer
 from pathlib import Path
 
 from health_access.a_preprocessing import transform_projections, standardize_data, aggregate_poi
-from health_access.b_clustering import find_optimal_k, apply_clustering, export_clusters_separately
+from health_access.b_clustering import find_optimal_k, apply_clustering, export_clusters_separately, print_cluster_characteristics, print_defining_features
 from health_access.c_analysis_moran import create_weights_matrices, build_morans_table, compute_lisa
 from health_access.d_analysis_accessibility import calculate_health_accessibility
 from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, plot_network_accessibility, run_cluster_viz, plot_lisa_overlay
@@ -59,7 +59,7 @@ def main(
     #    help="Target variable for Moran's I analyses",
     #),
     n_clusters: int = typer.Option(
-        5, 
+        4, 
         "--n-clusters", 
         "-n", 
         help="Number of KMeans clusters (overrides config). Default: 5."
@@ -191,6 +191,14 @@ def main(
             gdf_clustered.to_file(clustered_output, driver="GeoJSON")
 
             logger.info(f"Clustered data saved to: {clustered_output}")
+
+            #comparing the scaled data to the original data for interpretation
+            RAW_FEATURES = [feat.replace('_scaled', '') for feat in CLUSTERING_FEATURES]
+            gdf_vars['cluster'] = gdf_clustered['cluster']
+
+            # print the output to characterize and define features
+            char_df = print_cluster_characteristics(gdf_vars, features = RAW_FEATURES)
+            zscore_df = print_defining_features(gdf_vars, features = RAW_FEATURES)
 
             clusters_dir = project_root / "data/processed/clusters"
             clusters_dir.mkdir(parents=True, exist_ok=True)
