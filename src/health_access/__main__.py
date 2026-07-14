@@ -60,6 +60,7 @@ def main(
         help="Randomization seed for replicability (overrides config). Default: 42."
         ),    
     skip_transform: bool = typer.Option(
+        #MAYBE CHANGE NAME TO PROJECTION
         False, 
         "--skip-transform", 
         "-st", 
@@ -76,6 +77,18 @@ def main(
         "--skip-clustering", 
         "-sc", 
         help="Skip clustering step."
+        ),
+    skip_clustering_viz: bool = typer.Option(
+        False, 
+        "--skip-clustering-viz", 
+        "-scv", 
+        help="Skip clustering visualization step."
+        ),
+    skip_esda: bool = typer.Option(
+        False, 
+        "--skip-esda", 
+        "-sesda", 
+        help="Skip clustering visualization step."
         ),
     skip_accessibility: bool = typer.Option( # define
         False, 
@@ -136,10 +149,12 @@ def main(
             # Save the updated GDF to the variables file
             gdf.to_file(census_output, driver="GeoJSON")
 
+
         else:
             logger.error(f"Input file not found at {input_file}. Skipping calculation.")
 
     else:
+        
         logger.info("Data preprocessing complete!")
 
     # 2. CLUSTERING - We only run this if the file was successfully created in the prior step, and if the user didn't specify to skip clustering
@@ -163,97 +178,110 @@ def main(
             clusters_dir.mkdir(parents=True, exist_ok=True)
             export_clusters_separately(gdf_clustered, clusters_dir)
         
-            #logger.info("Generating detailed density visualizations for each cluster...")
-            #run_cluster_viz(
-            #    clusters_dir=clusters_dir, 
-            #    viz_dir=viz_cluster_output
-            #)
-
+            logger.info("Generating detailed density visualizations for each cluster...")
+        
         else:
             logger.error("Variables file missing. Skipping clustering.")
             return  # Exit the function if the variables file is missing
 
+
     #  CLUSTER CONT  - VISUALIZATION
-        # Image A: Clusters only
+    # Image A: Clusters only
+    if not skip_clustering_viz:
         logger.info("Generating cluster map...")
+
+        gdf_clustered = gpd.read_file(clustered_output)
+        gdf_vars = gpd.read_file(census_output)
+
+        run_cluster_viz(
+                clusters_dir = clusters_dir, 
+                viz_dir = viz_cluster_output,
+                basemap_gdf = gdf_vars
+        )
+        
         saved_map_path = create_cluster_map(
-            gdf_clustered,
+            gdf = gdf_clustered,
+            basemap_gdf = gdf_vars,
             project_root = project_root, 
             n_clusters = n_clusters,
-            show_legend=show_legend,
-            title="ORP Clusters based on 9 Selected Variables"
+            show_legend = show_legend,
+            title = "ORP Clusters based on 9 Selected Variables"
         )
 
         # Image B: Clusters + Points
         logger.info("Generating cluster map with point overlays...")
         create_cluster_map(
-            gdf_clustered, 
-            project_root=project_root, 
-            n_clusters=n_clusters, 
-            with_points=True, 
-            point_mapping=POINT_MAPPING, 
-            points_dir=raw_dir, 
-            show_legend=show_legend,
-            title="Spatial Justice Analysis"
+            gdf = gdf_clustered, 
+            basemap_gdf = gdf_vars,
+            project_root = project_root, 
+            n_clusters = n_clusters, 
+            with_points = True, 
+            point_mapping = POINT_MAPPING, 
+            points_dir = raw_dir, 
+            show_legend = show_legend,
+            title = "ORP Clusters based on 9 Selected Variables with Care Locations"
         )
         logger.info(f"Visualization saved to: {saved_map_path}")
 
     else:
-        logger.info("Skipping clustering (--skip-clustering set).")
-    # logger.error("Variables file missing. Skipping Clustering and Visualization.")
-
+        logger.info("Skipping clustering visualization.")
 
 
     # 3. INTRA-CLUSTER SPATIAL ANALYSIS 
     # Analyzing patterns WITHIN each cluster
-    #if not skip_clustering: # Only run if clustering was performed
-    logger.info("Step 3: Global Spatial Analysis (Healthcare Desert Detection)...")
-        
-    try:
-            # A. Define the Justice Metric (Per Capita Density)
-            # Using the population column POCET_OBYV from your logic
-            population = gdf_clustered['POCET_OBYV'].replace(0, 1)
-            gdf_clustered['EMERGENCY_PER_CAPITA'] = (gdf_clustered['COUNT_EMERGENCY'] / population) * 1000
-            gdf_clustered['MATERNITY_PER_CAPITA'] = (gdf_clustered['COUNT_MATERNITY'] / population) * 1000
-            gdf_clustered['TOTAL_PER_CAPITA'] = (gdf_clustered['COUNT_TOTAL_CARE'] / population) * 1000
-
-            target_col = "EMERGENCY_PER_CAPITA" #can be maternity or total 
+    #NEED TO ADD FLAG
+    if not skip_esda:
+        logger.info("ESDA: Global Moran's and LISA analysis...")
             
+        try:
+            gdf_clustered = gpd.read_file(clustered_output)
+
+            target_col = "EMERGENCY_PER_CAPITA" #can be maternity or total  "MATERNITY_PER_CAPITA" / "TOTAL_PER_CAPITA"
+            target_col2 = "MATERNITY_PER_CAPITA"
+            target_col3 = "TOTAL_PER_CAPITA"
+                
             # B. Create Weights for the entire city
             # This ensures we find clusters of low-access regardless of socio-economic status
             weights = create_weights_matrices(gdf_clustered)
             queen_w = weights["Queen"]
-            
+                
             # C. Global Moran's I
             # Tells us if health access is generally clustered or random across the city
-            moran_table = build_morans_table(gdf_clustered, weights, target_col) #NEED TO ADD FLAG
-            moran_table.to_csv(spatial_dir / "global_moran_results.csv", index=False)
+            moran_table_emergency = build_morans_table(gdf_clustered, weights, target_col) 
+            moran_table_emergency.to_csv(spatial_dir / "global_moran_emergency_results.csv", index=False)
+
+            moran_table_maternity = build_morans_table(gdf_clustered, weights, target_col2)
+            moran_table_maternity.to_csv(spatial_dir / "global_moran_maternity_results.csv", index=False)
             
+            moran_table_total = build_morans_table(gdf_clustered, weights, target_col3) 
+            moran_table_total.to_csv(spatial_dir / "global_moran_total_results.csv", index=False)  
+
             # D. LISA (Local Indicators of Spatial Association)
             # This identifies the actual "Coldspots" (Low-Low)
-            lisa_gdf, lisa_obj = compute_lisa(gdf_clustered, queen_w, target_col) #NEED TO ADD FLAG
-
+            lisa_gdf, lisa_obj = compute_lisa(gdf_clustered, queen_w, target_col)
             # Save the results. Use the GDF (lisa_gdf) for the file export
             lisa_output = spatial_dir / "global_lisa_results.geojson"
             lisa_gdf.to_file(lisa_output, driver="GeoJSON")
-
+            #NEED TO BRAINSTORM HOW TO DO THIS BETTER
+            #MAYBE INPUT FLAGS OR SOMETHING
+            
             logger.info(f"Spatial analysis complete. Results saved to: {lisa_output}")
-
-           
+            
             # Now call the visualization function
             plot_lisa_overlay(
                 gdf_clustered=lisa_gdf, 
                 lisa_results=lisa_obj,  
                 output_path=viz_dir / f"lisa_overlay_{n_clusters}.png"
             )
-                    
-    except Exception as e:
-        logger.error(f"Spatial analysis failed: {e}")
-            #else:
-            #        logger.error("Clustered file missing. Skipping spatial analysis.")
+                        
+        except Exception as e:
+            logger.error(f"Spatial analysis failed: {e}")
+                #else:
+                #        logger.error("Clustered file missing. Skipping spatial analysis.")
+    else:
+        logger.info("Skipping ESDA...")
 
-
-
+    
 
     # 4. ACCESSIBILITY ANALYSIS
     # RUNS USING VALHALLA - WE NEED TO ACTIVATE THAT USING DOCKER

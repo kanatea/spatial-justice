@@ -8,6 +8,7 @@ from typing import Union, List, Dict
 logger = logging.getLogger(__name__)
 
 # Function to transform projections 
+##CHANGE NAME TO PROJECTION
 def transform_projections(raw_dir: Union[str, Path], transformed_dir: Union[str, Path], target_epsg: int):
     """
     Reads all geojson files in the raw data folder, transforms them to target_epsg,
@@ -132,5 +133,13 @@ def aggregate_poi(boundary_gdf: gpd.GeoDataFrame, point_mapping: Dict[str, str],
     # Ensure all count columns are integers
     count_cols = list(point_mapping.values()) + ['COUNT_TOTAL_CARE']
     df_result[count_cols] = df_result[count_cols].fillna(0).astype(int)
+
+    # A. Define Metric (Per Capita Density)
+    # Using the population column POCET_OBYV 
+    population = df_result['POCET_OBYV'].replace(0, 1)
+    df_result['EMERGENCY_PER_CAPITA'] = (df_result['COUNT_EMERGENCY'] / population) * 10000
+    df_result['MATERNITY_PER_CAPITA'] = (df_result['COUNT_MATERNITY'] / population) * 10000
+    df_result['TOTAL_PER_CAPITA'] = (df_result['COUNT_TOTAL_CARE'] / population) * 10000
+
     
     return df_result
