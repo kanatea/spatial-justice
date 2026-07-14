@@ -102,12 +102,11 @@ def standardize_data(input_path: Path, output_path: Path):
     ]
 
     # Scale the data, StandardScaler is a feature from scikit-learn
-    #scaler = StandardScaler()
-    #X_scaled = scaler.fit_transform(X)
-    #logger.info(f"Data scaled successfully using {len(features)} features.")
 
     # Initialize the Scaler
     scaler = StandardScaler()
+    #what does standardscaler do again? i think this is the z score one
+    #scaler = MinMaxScaler()
 
     # Apply scaling. 
     # We create new columns with a '_scaled' suffix to keep the original values for analysis/mapping

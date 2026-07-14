@@ -5,7 +5,7 @@ import typer
 from pathlib import Path
 
 from health_access.a_preprocessing import transform_projections, standardize_data, aggregate_poi
-from health_access.b_clustering import apply_clustering, export_clusters_separately
+from health_access.b_clustering import find_optimal_k, apply_clustering, export_clusters_separately
 from health_access.c_analysis_moran import create_weights_matrices, build_morans_table, compute_lisa
 from health_access.d_analysis_accessibility import calculate_health_accessibility
 from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, plot_network_accessibility, run_cluster_viz, plot_lisa_overlay
@@ -20,9 +20,15 @@ logger = logging.getLogger(__name__)
 app = typer.Typer(context_settings={"help_option_names": ["-h", "--help"]})
 
 CLUSTERING_FEATURES = [
-    "POP_DENS_scaled", "PCT_WOMEN_scaled", "PCT_CHILD_scaled", 
-    "PCT_WORKING_scaled", "PCT_ELDERLY_scaled", "AGEING_INDEX_scaled", 
-    "DEPENDENCY_scaled", "NATURAL_INC_RATE_scaled", "MIG_BAL_RATE_scaled"
+    "POP_DENS_scaled", 
+    "PCT_WOMEN_scaled", 
+    #"PCT_CHILD_scaled", 
+    #"PCT_WORKING_scaled", 
+    "PCT_ELDERLY_scaled", 
+    #"AGEING_INDEX_scaled", 
+    "DEPENDENCY_scaled", 
+    "NATURAL_INC_RATE_scaled", 
+    "MIG_BAL_RATE_scaled"
 ]
 
 # Define the mapping for the point files
@@ -64,8 +70,7 @@ def main(
         "-rs", 
         help="Randomization seed for replicability (overrides config). Default: 42."
         ),    
-    skip_transform: bool = typer.Option(
-        #MAYBE CHANGE NAME TO PROJECTION
+    skip_project: bool = typer.Option(
         False, 
         "--skip-transform", 
         "-st", 
@@ -126,7 +131,7 @@ def main(
     viz_cluster_output = viz_dir / "cluster_viz"
 
    # 1. PREPROCESSING: Transform (reproject) all raw files to EPSG:5514
-    if not skip_transform:
+    if not skip_project:
         logger.info("Starting Projection Transformation...")
         transform_projections(
             raw_dir, 
@@ -167,6 +172,14 @@ def main(
         if census_output.exists():
             logger.info(f"Starting Clustering with {n_clusters} clusters...")
             gdf_vars = gpd.read_file(census_output)
+
+            find_optimal_k(
+                gdf_vars,
+                features = CLUSTERING_FEATURES,
+                random_state = random_state,
+                max_k = 10 #should i let this be customizable by the user?
+            )
+
 
             gdf_clustered = apply_clustering(
                 gdf_vars,
