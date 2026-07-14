@@ -20,10 +20,9 @@ logger = logging.getLogger(__name__)
 app = typer.Typer(context_settings={"help_option_names": ["-h", "--help"]})
 
 CLUSTERING_FEATURES = [
-    "POP_DENS", "PCT_WOMEN", "PCT_CHILD", 
-    "PCT_WORKING", "PCT_ELDERLY", "AGEING_INDEX", 
-    "DEPENDENCY", "NATURAL_INC_RATE", "MIG_BAL_RATE" #,
-    # "COUNT_EMERGENCY", "COUNT_MATERNITY", "COUNT_TOTAL_CARE"
+    "POP_DENS_scaled", "PCT_WOMEN_scaled", "PCT_CHILD_scaled", 
+    "PCT_WORKING_scaled", "PCT_ELDERLY_scaled", "AGEING_INDEX_scaled", 
+    "DEPENDENCY_scaled", "NATURAL_INC_RATE_scaled", "MIG_BAL_RATE_scaled"
 ]
 
 # Define the mapping for the point files
@@ -47,6 +46,12 @@ def main(
         "-proj",
         help="EPSG Projection",
     ),
+    #target_col: int = typer.Option(
+    #    "EMERGENCY_PER_CAPITA",
+    #    "--target_moran_var",
+    #    "-moran",
+    #    help="Target variable for Moran's I analyses",
+    #),
     n_clusters: int = typer.Option(
         5, 
         "--n-clusters", 
@@ -97,10 +102,10 @@ def main(
         help="Skip accessibility analysis step."
         ),
     show_legend: bool = typer.Option(
-        False, 
-        "--legend", 
-        "-l", 
-        help="Add a legend to the cluster map." # is this just for the cluster map or all legends?
+        True, 
+        "--no_legend", 
+        "-nl", 
+        help="Add a legend to the cluster map." 
         ),
 ):
     
@@ -179,6 +184,12 @@ def main(
             export_clusters_separately(gdf_clustered, clusters_dir)
         
             logger.info("Generating detailed density visualizations for each cluster...")
+            run_cluster_viz(
+                clusters_dir=clusters_dir, 
+                viz_dir=viz_cluster_output
+            )
+
+            logger.info("Generating detailed density visualizations for each cluster...")
         
         else:
             logger.error("Variables file missing. Skipping clustering.")
@@ -227,7 +238,7 @@ def main(
         logger.info("Skipping clustering visualization.")
 
 
-    # 3. INTRA-CLUSTER SPATIAL ANALYSIS 
+    # 3. ESDA
     # Analyzing patterns WITHIN each cluster
     #NEED TO ADD FLAG
     if not skip_esda:

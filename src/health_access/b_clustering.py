@@ -1,7 +1,7 @@
 import pandas as pd
 import geopandas as gpd
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
+#from sklearn.preprocessing import StandardScaler
 import logging
 from typing import List
 
@@ -20,10 +20,6 @@ def apply_clustering(df: gpd.DataFrame, features: List[str], n_clusters: int, ra
 
     X = df[features]
 
-    # Scale the data, StandardScaler is a feature from scikit-learn
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    logger.info(f"Data scaled successfully using {len(features)} features.")
 
     # Fit the model
     logger.info(f"Fitting KMeans with n_clusters={n_clusters}...")
@@ -36,7 +32,7 @@ def apply_clustering(df: gpd.DataFrame, features: List[str], n_clusters: int, ra
     
     # Create a copy to avoid SettingWithCopyWarning
     df_result = df.copy()
-    df_result['cluster'] = kmeans.fit_predict(X_scaled)
+    df_result['cluster'] = kmeans.fit_predict(X)
     
     # this line changes the cluster labels to start from 1 instead of 0, which is more intuitive for users and it will be easier to read in the visualizations.
     # we can delete it if we want to keep the original labels.
