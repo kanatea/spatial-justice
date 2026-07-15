@@ -81,6 +81,51 @@ def apply_clustering(df: gpd.DataFrame, features: List[str], n_clusters: int, ra
     logger.info("Clustering complete. Cluster labels added to dataframe.")
     return df_result
 
+
+# characterize each cluster by the mean of each feature per cluster 
+def print_cluster_characteristics(df: gpd.DataFrame, features: List[str]):
+    """
+    Calculates and prints the raw mean values for each feature per cluster.
+    Use this to describe the 'average' region in each cluster.
+    """
+    # Group by cluster and calculate the mean
+    characteristics = df.groupby('cluster')[features].mean()
+    
+    print("\n" + "="*70)
+    print("STEP 1: CLUSTER CHARACTERISTICS (Raw Means)")
+    print("="*70)
+    print(characteristics)
+    print("="*70 + "\n")
+    
+    return characteristics
+
+
+# highlights the defining features of each cluster by taking the z score of the features in each cluster relative to the global mean
+def print_defining_features(df: gpd.DataFrame, features: List[str]):
+    """
+    Calculates the Z-score of cluster means relative to the global mean.
+    Values > 1.0 or < -1.0 indicate a defining characteristic.
+    """
+    # 1. Calculate global statistics
+    global_means = df[features].mean()
+    global_stds = df[features].std()
+    
+    # 2. Calculate cluster means
+    cluster_means = df.groupby('cluster')[features].mean()
+    
+    # 3. Compute Z-scores: (Cluster Mean - Global Mean) / Global Std
+    z_scores = (cluster_means - global_means) / global_stds
+    
+    print("\n" + "="*70)
+    print("STEP 2: DEFINING FEATURES (Z-Scores)")
+    print("Interpretation: > 1.0 (High) | < -1.0 (Low)")
+    print("="*70)
+    print(z_scores)
+    print("="*70 + "\n")
+    
+    return z_scores
+
+
 #CODE TO SEPARATE CLUSTERS TO CONDUCT SUBSEQUENT ANALYSES
 #Moran's I and accessibility analyses will run per cluster...
 

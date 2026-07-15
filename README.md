@@ -1,8 +1,6 @@
 # Travel Accessibility (Distance/Distribution) of Emergency Care vs. Maternity Care Units
 *Spatial Justice Final Project by Marie Tranov and Kana Tateishi*
 
-[UV reference](https://docs.astral.sh/uv/guides/projects/#creating-a-new-project)
-
 ## Overview :)
 This project aims to compare and examine the differences of the travel accessibility of emergency care and maternity care services. Potential research questions include:
 - How long do women have to travel to give birth compared to someone seeking general emergency care? 
@@ -30,6 +28,7 @@ Based on literature, we will find acceptable travel thresholds and assess access
 
 ## Proposed Method
 Data Preprocessing --> Clustering --> Accessibility Index
+For a more detailed breakdown, please refer to `requirements.md`
 
 1. Data preprocessing includes filtering emergency care (build_emergency). It scans the specialties and care_form columns in the csv to classify every facility into one of three levels: hospitals with a formal emergency department (urgentní medicína), hospitals with ICU-level acute care but no dedicated ED, and ambulance dispatch stations (ZZS). Everything else is discarded.
     - What kind of services are included in maternity care?
@@ -61,6 +60,12 @@ spatial-justice/
 ```
 
 ## How To Run
+Install UV: [UV reference](https://docs.astral.sh/uv/guides/projects/#creating-a-new-project)
+
+Install [Docker](https://docs.docker.com/desktop/setup/install/windows-install/)
+- download valhalla container
+- command line `docker start valhalla`
+
 Please reference `pyproject.toml` for requirements and dependencies.
 
 `uv run health_access` to run the project. 
