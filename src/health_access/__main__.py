@@ -72,7 +72,7 @@ def main(
         ),    
     skip_project: bool = typer.Option(
         False, 
-        "--skip-transform", 
+        "--skip-project", 
         "-st", 
         help="Skip projection transformation (use already transformed data)."
         ),
@@ -88,11 +88,11 @@ def main(
         "-sc", 
         help="Skip clustering step."
         ),
-    skip_clustering_viz: bool = typer.Option(
-        False, 
-        "--skip-clustering-viz", 
-        "-scv", 
-        help="Skip clustering visualization step."
+    clustering_viz: bool = typer.Option(
+        True, 
+        "--clustering-viz", 
+        "-cv", 
+        help="Enable clustering visualization step."
         ),
     skip_esda: bool = typer.Option(
         False, 
@@ -203,6 +203,33 @@ def main(
             clusters_dir = project_root / "data/processed/clusters"
             clusters_dir.mkdir(parents=True, exist_ok=True)
             export_clusters_separately(gdf_clustered, clusters_dir)
+
+
+            logger.info("Generating cluster map...")
+
+            saved_map_path = create_cluster_map(
+                gdf = gdf_clustered,
+                basemap_gdf = gdf_vars,
+                project_root = project_root, 
+                n_clusters = n_clusters,
+                show_legend = show_legend,
+                title = "ORP Clusters based on 9 Selected Variables"
+            )
+
+            # Image B: Clusters + Points
+            logger.info("Generating cluster map with point overlays...")
+            create_cluster_map(
+                gdf = gdf_clustered, 
+                basemap_gdf = gdf_vars,
+                project_root = project_root, 
+                n_clusters = n_clusters, 
+                with_points = True, 
+                point_mapping = POINT_MAPPING, 
+                points_dir = raw_dir, 
+                show_legend = show_legend,
+                title = "ORP Clusters based on 9 Selected Variables with Care Locations"
+            )
+            logger.info(f"Visualization saved to: {saved_map_path}")
         
         else:
             logger.error("Variables file missing. Skipping clustering.")
@@ -211,18 +238,8 @@ def main(
 
     #  CLUSTER CONT  - VISUALIZATION
     # Image A: Clusters only
-    if not skip_clustering_viz:
-        logger.info("Generating cluster map...")
-
-        saved_map_path = create_cluster_map(
-            gdf = gdf_clustered,
-            basemap_gdf = gdf_vars,
-            project_root = project_root, 
-            n_clusters = n_clusters,
-            show_legend = show_legend,
-            title = "ORP Clusters based on 9 Selected Variables"
-        )
-
+    if not clustering_viz:
+        logger.info("Generating individual cluster maps...")
         gdf_clustered = gpd.read_file(clustered_output)
         gdf_vars = gpd.read_file(census_output)
 
@@ -233,22 +250,6 @@ def main(
                 viz_dir = viz_cluster_output,
                 basemap_gdf = gdf_vars
         )
-
-        # Image B: Clusters + Points
-        logger.info("Generating cluster map with point overlays...")
-        create_cluster_map(
-            gdf = gdf_clustered, 
-            basemap_gdf = gdf_vars,
-            project_root = project_root, 
-            n_clusters = n_clusters, 
-            with_points = True, 
-            point_mapping = POINT_MAPPING, 
-            points_dir = raw_dir, 
-            show_legend = show_legend,
-            title = "ORP Clusters based on 9 Selected Variables with Care Locations"
-        )
-        logger.info(f"Visualization saved to: {saved_map_path}")
-
     else:
         logger.info("Skipping clustering visualization.")
 
