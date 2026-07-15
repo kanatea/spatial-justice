@@ -127,7 +127,7 @@ def visualize_cluster_metrics(file, viz_dir, basemap_gdf):
         
         # Save to /visualizations/cluster_viz/cluster_X_suffix.png
         save_path = viz_dir / f"{cluster_id}_{suffix}.png"
-        plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        plt.savefig(save_path, bbox_inches='tight', dpi=100)
         plt.close(fig)
 
 
