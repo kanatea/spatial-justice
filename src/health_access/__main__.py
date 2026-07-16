@@ -8,7 +8,7 @@ from health_access.a_preprocessing import transform_projections, standardize_dat
 from health_access.b_clustering import find_optimal_k, apply_clustering, export_clusters_separately, print_cluster_characteristics, print_defining_features
 from health_access.c_analysis_moran import create_weights_matrices, build_morans_table, compute_lisa
 from health_access.d_analysis_accessibility import calculate_health_accessibility
-from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, plot_network_accessibility, run_cluster_viz, plot_lisa_overlay
+from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, plot_network_accessibility, run_cluster_viz, plot_lisa
 
 logging.basicConfig(
     level=logging.INFO,
@@ -271,6 +271,7 @@ def main(
             # This ensures we find clusters of low-access regardless of socio-economic status
             weights = create_weights_matrices(gdf_clustered)
             queen_w = weights["Queen"]
+                #can y
                 
             # C. Global Moran's I
             # Tells us if health access is generally clustered or random across the city
@@ -295,9 +296,8 @@ def main(
             logger.info(f"Spatial analysis complete. Results saved to: {lisa_output}")
             
             # Now call the visualization function
-            plot_lisa_overlay(
-                gdf_clustered=lisa_gdf, 
-                lisa_results=lisa_obj,  
+            plot_lisa(
+                gdf_lisa = lisa_gdf, 
                 output_path=viz_dir / f"lisa_overlay_{n_clusters}.png"
             )
                         
