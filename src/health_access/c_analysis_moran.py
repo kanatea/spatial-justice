@@ -12,10 +12,11 @@ def create_weights_matrices(gdf) -> Dict:
     """
     logger.info("Creating spatial weights matrices...")
     return {
-        "Queen": libpysal.weights.Queen.from_dataframe(gdf, use_index=True),
-        "Rook": libpysal.weights.Rook.from_dataframe(gdf, use_index=True),
-        "KNN (k=5)": libpysal.weights.KNN.from_dataframe(gdf, k=5, use_index=True)
+        "Queen": libpysal.weights.Queen.from_dataframe(gdf, use_index=True), #corner
+        "Rook": libpysal.weights.Rook.from_dataframe(gdf, use_index=True), #edge
+        "KNN (k=5)": libpysal.weights.KNN.from_dataframe(gdf, k=5, use_index=True) #center points
     }
+
 
 def compute_global_morans(gdf, w, variable: str) -> esda.Moran:
     logger.info("Computing Global Moran's I - variable: %s", variable)
@@ -23,6 +24,11 @@ def compute_global_morans(gdf, w, variable: str) -> esda.Moran:
     # Ensure weights are row-standardized for correct interpretation
     w.transform = 'r' 
     return esda.Moran(y, w)
+
+
+#Positive Moran's I: "Clustered." Similar values are neighbors (Highs are near Highs, Lows are near Lows).
+#Negative Moran's I: "Dispersed." Different values are neighbors (like a checkerboard).
+#Zero: "Random." There is no spatial pattern.
 
 def compute_lisa(gdf, w, variable: str): # Remove -> pd.DataFrame hint
     logger.info("Computing LISA - variable: %s", variable)

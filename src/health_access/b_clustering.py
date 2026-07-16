@@ -27,8 +27,8 @@ def find_optimal_k(df: gpd.DataFrame, features: List[str], random_state: int, ma
         km = KMeans(n_clusters=k, random_state=random_state, n_init=10).fit(X)
         
         # Calculate scores
-        ch_score = calinski_harabasz_score(X, km.labels_)
-        sil_score = silhouette_score(X, km.labels_)
+        ch_score = calinski_harabasz_score(X, km.labels_) #pseudo f score
+        sil_score = silhouette_score(X, km.labels_) 
         
         ch_scores.append(ch_score)
         sil_scores.append(sil_score)

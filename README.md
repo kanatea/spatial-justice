@@ -22,9 +22,10 @@ Based on literature, we will find acceptable travel thresholds and assess access
 
 ## Data Sources
 - [Geoportal ČÚZK](https://cuzk.gov.cz/) (administrative and cadastral boundaries, road networks); [Link to portal](https://geoportal.cuzk.gov.cz/mGeoportal/)
-- [National Registry of Healthcare Providers](https://nrpzs.uzis.cz/) (csv file of all healtcare providers)
-- [OpenStreetMap](https://overpass-turbo.eu/) via overpass-turbo (road networks, regional boundaries, hospital location backup)
+- [National Registry of Healthcare Providers](https://nrpzs.uzis.cz/) (csv file of all healthcare providers)
+- [OpenStreetMap](https://download.geofabrik.de/europe/czech-republic.html) (road networks, regional boundaries, hospital location backup)
 - [Czech Statistical Office](https://csu.gov.cz/2021-census?pocet=10&start=0&podskupiny=171&razeni=-datumVydani) for 2021 Census
+
 
 ## Proposed Method
 Data Preprocessing --> Clustering --> Accessibility Index
