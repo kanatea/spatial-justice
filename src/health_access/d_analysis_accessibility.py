@@ -1,110 +1,152 @@
 import logging
 import time
 import requests
-import numpy as np
-import pandas as pd
 import geopandas as gpd
-import requests
-import time
+import numpy as np
+from shapely.geometry import Point
 
-#download https://download.geofabrik.de/europe/czech-republic.html
+logger = logging.getLogger(__name__)
 
-VALHALLA_URL = "http://localhost:8002"
+VALHALLA_API_URL = "http://host.docker.internal:8002"
+VALHALLA_MATRIX_LIMIT = 2400 
 
-"""
-Calculates travel time matrices using the Valhalla routing engine.
-Instead of downloading a road network like Pandana,
-this version sends routing requests to Valhalla running locally in Docker.
-Returns travel time in minutes instead of distance in metres.
-"""
+def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
+    endpoint = f"{VALHALLA_API_URL}/sources_to_targets"
+    
+    sources = [{"lat": float(lat), "lon": float(lon), "radius": 15000} for lat, lon in origins]
+    targets = [{"lat": float(lat), "lon": float(lon), "radius": 15000} for lat, lon in destinations]
 
-def get_travel_time_matrix(origins, destinations, costing="auto"):
-    """
-    origins/destinations: list of (lat, lon) tuples.
-    Returns times[i][j] = minutes from origin i to destination j (None if unreachable).
-    """
-    body = {
-        "sources": [{"lat": lat, "lon": lon} for lat, lon in origins],
-        "targets": [{"lat": lat, "lon": lon} for lat, lon in destinations],
-        "costing": costing,
-    }
-    r = requests.post(f"{VALHALLA_URL}/sources_to_targets", json=body, timeout=120) # I had to rise the timeout to 120 seconds for large batches, otherwise Valhalla would time out and return an error.
-    if r.status_code != 200:
-        print("Valhalla error response:", r.text)
-    r.raise_for_status()
-    data = r.json()["sources_to_targets"]
-    return [
-        [round(cell["time"] / 60, 1) if cell.get("time") is not None else None for cell in row]
-        for row in data
-    ]
+    total_sources = len(sources)
+    total_targets = len(targets)
+    
+    if total_sources == 0 or total_targets == 0:
+        return []
 
-def get_travel_time_matrix_safe(origins, destinations, costing="auto", max_retries=3):
-    """
-    Tries the batch - if Valhalla rejects it or times out, recursively splits origins
-    in half until the offending pair is isolated (marked None) instead
-    of failing the whole batch.
-    HTTPError (400, e.g. distance-limit rejection) --> genuinely unroutable, split and isolate.
-    ConnectionError/Timeout (server down/restarting) --> wait and retry, don't mark None.
-    """
-    for attempt in range(max_retries):
-        try:
-            return get_travel_time_matrix(origins, destinations, costing=costing)
-        except requests.exceptions.HTTPError:
-            if len(origins) == 1:
-                print(f"  !! unroutable origin, marking None: {origins[0]}")
-                return [[None] * len(destinations)]
-            mid = len(origins) // 2
-            left  = get_travel_time_matrix_safe(origins[:mid], destinations, costing)
-            right = get_travel_time_matrix_safe(origins[mid:], destinations, costing)
-            return left + right
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
-            wait = 10 * (attempt + 1)
-            print(f"  !! server unavailable ({type(e).__name__}), waiting {wait}s and retrying... (attempt {attempt+1}/{max_retries})")
-            time.sleep(wait)
+    # Dynamic batching logic
+    if total_targets > VALHALLA_MATRIX_LIMIT:
+        batch_size = 1
+    else:
+        calculated_batch_size = int(VALHALLA_MATRIX_LIMIT / total_targets)
+        batch_size = max(1, min(calculated_batch_size, 50))
+    
+    logger.info(f"Routing: {total_sources} Origins x {total_targets} Targets. Batch Size: {batch_size}")
+
+    AVG_SPEED_KMPH = 60 
+    CIRCUITY_FACTOR = 1.3 
+    min_travel_times = [None] * total_sources
+    
+    # Track batch number for the console output
+    batch_num = 1
+    for i in range(0, total_sources, batch_size):
+        batch_sources = sources[i : i + batch_size]
+        current_batch_size = len(batch_sources)
         
-    print(f"  !! giving up after {max_retries} retries for {len(origins)} origins — marking all None")
-    return [[None] * len(destinations) for _ in origins]
+        # RESTORED: The specific labeling style you prefer
+        logger.info(f"--> Processing batch {batch_num}: origins {i} to {min(i + batch_size, total_sources)}...")
+        
+        payload = {
+            "sources": batch_sources,
+            "targets": targets,
+            "costing": costing,
+            "units": units,
+            "matrix_locations": 1, 
+            "costing_options": {costing: {"max_distance": 5000000}}
+        }
 
-def get_min_travel_times_batched(origins, destinations, batch_size=10, costing="auto", max_matrix_locations=2500):
+        try:
+            response = requests.post(endpoint, json=payload, timeout=60)
+            response.raise_for_status()
+            data = response.json()
+            
+            results = data.get("sources_to_targets", [])
+            for idx, source_results in enumerate(results):
+                times = [float(cell["time"]) / 60 for cell in source_results if cell.get("time") is not None]
+                min_travel_times[i + idx] = min(times) if times else float('inf')
+
+        except (requests.exceptions.HTTPError, Exception) as e:
+            # Log the batch failure using the same logger style
+            logger.warning(f"Batch {batch_num} failed. Falling back to individual processing for {i} to {min(i + batch_size, total_sources)}...")
+            
+            for j in range(current_batch_size):
+                global_idx = i + j
+                source = batch_sources[j]
+                
+                individual_payload = {
+                    "sources": [source],
+                    "targets": targets,
+                    "costing": costing,
+                    "units": units,
+                    "matrix_locations": 1,
+                    "costing_options": {costing: {"max_distance": 5000000}}
+                }
+                
+                try:
+                    res = requests.post(endpoint, json=individual_payload, timeout=30)
+                    res.raise_for_status()
+                    res_data = res.json()
+                    target_list = res_data.get("sources_to_targets", [[]])[0]
+                    times = [float(cell["time"]) / 60 for cell in target_list if cell.get("time") is not None]
+                    min_travel_times[global_idx] = min(times) if times else float('inf')
+                
+                except requests.exceptions.HTTPError as http_err:
+                    # DETAILED ERROR LOGGING: Matches your logger format
+                    error_code = http_err.response.status_code
+                    error_msg = http_err.response.text
+                    logger.warning(f"ORP {global_idx} failed | Code: {error_code} | Msg: {error_msg} --> Using Straight-Line Approximation")
+                    
+                    # Straight-line Fallback
+                    source_lat, source_lon = source['lat'], source['lon']
+                    min_dist_km = float('inf')
+                    for target in targets:
+                        dist = (((target['lat'] - source_lat)**2 + (target['lon'] - source_lon)**2)**0.5) * 111
+                        if dist < min_dist_km: min_dist_km = dist
+                    min_travel_times[global_idx] = (min_dist_km * CIRCUITY_FACTOR) / (AVG_SPEED_KMPH / 60)
+                
+                except Exception as other_err:
+                    logger.error(f"❌ ORP {global_idx} critical error: {other_err} --> Using Straight-Line Approximation")
+                    source_lat, source_lon = source['lat'], source['lon']
+                    min_dist_km = float('inf')
+                    for target in targets:
+                        dist = (((target['lat'] - source_lat)**2 + (target['lon'] - source_lon)**2)**0.5) * 111
+                        if dist < min_dist_km: min_dist_km = dist
+                    min_travel_times[global_idx] = (min_dist_km * CIRCUITY_FACTOR) / (AVG_SPEED_KMPH / 60)
+
+        batch_num += 1
+        time.sleep(0.05)
+
+    return min_travel_times
+
+def calculate_health_accessibility(census_gdf, emergency_gdf, maternity_gdf):
     """
-    Chunks origins into batches to stay under Valhalla's matrix size limits.
-    Returns a flat list: min travel time per origin, in original order.
-    """
-    if batch_size is None:
-        batch_size = max(1, max_matrix_locations // len(destinations)) # this ensures that we don't exceed the max matrix size and the system doesn't crash.
-        print(f" auto batch_size = {batch_size} (destinations: {len(destinations)})")
-
-    results = []
-    for i in range(0, len(origins), batch_size):
-        chunk = origins[i:i + batch_size]
-        print(f"  batch {i // batch_size + 1}: origins {i}-{i + len(chunk)}")
-        matrix = get_travel_time_matrix_safe(chunk, destinations, costing=costing)
-        for row in matrix:
-            valid = [t for t in row if t is not None]
-            results.append(min(valid) if valid else None)
-    return results
-
-
-def calculate_health_accessibility(census_gdf, emergency_gdf, maternity_gdf, batch_size=10):
-    """
-    census_gdf:    The GDF containing ORP/census data
-    emergency_gdf: The GDF of Emergency care points
-    maternity_gdf: The GDF of Maternity care points
+    Main entry point for accessibility analysis.
     """
     census_gdf = census_gdf.copy()
-    # Centroid computed in metric CRS, then reprojected to WGS84 = more accurate than computing centroid in WGS84 directly
+    
+    # Reproject and extract coordinates
     centroids_wgs = census_gdf.geometry.centroid.to_crs("EPSG:4326")
     origins = [(pt.y, pt.x) for pt in centroids_wgs]
-
+    
     emergency_wgs = emergency_gdf.to_crs("EPSG:4326")
     maternity_wgs = maternity_gdf.to_crs("EPSG:4326")
-    em_dest  = [(pt.y, pt.x) for pt in emergency_wgs.geometry]
-    mat_dest = [(pt.y, pt.x) for pt in maternity_wgs.geometry]
+    em_dest = [(float(geom.y), float(geom.x)) for geom in emergency_wgs.geometry]
+    mat_dest = [(float(geom.y), float(geom.x)) for geom in maternity_wgs.geometry]
 
-    print(f"Calculating travel times to {len(em_dest)} Emergency Care sites for {len(origins)} ORPs...")
-    census_gdf["travel_time_emergency"] = get_min_travel_times_batched(origins, em_dest, batch_size)
+    logger.info(f"Processing all ORPs in Czechia: {len(origins)} ORPs")
+    logger.info(f"  - Emergency Sites: {len(em_dest)}")
+    logger.info(f"  - Maternity Sites: {len(mat_dest)}")
 
-    print(f"Calculating travel times to {len(mat_dest)} Maternity Care sites for {len(origins)} ORPs...")
-    census_gdf["travel_time_maternity"] = get_min_travel_times_batched(origins, mat_dest, batch_size)
+    # Emergency Care
+    if len(origins) > 0 and len(em_dest) > 0:
+        logger.info("Calculating travel times to Emergency Care sites...")
+        census_gdf["time_emergency"] = get_valhalla_matrix(origins, em_dest)
+    else:
+        census_gdf["time_emergency"] = np.nan
+
+    # Maternity Care
+    if len(origins) > 0 and len(mat_dest) > 0:
+        logger.info("Calculating travel times to Maternity Care sites...")
+        census_gdf["time_maternity"] = get_valhalla_matrix(origins, mat_dest)
+    else:
+        census_gdf["time_maternity"] = np.nan
 
     return census_gdf
