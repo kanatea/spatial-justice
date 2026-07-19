@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from health_access.a_preprocessing import transform_projections, standardize_data, aggregate_poi
 from health_access.b_clustering import find_optimal_k, apply_clustering, export_clusters_separately, print_cluster_characteristics, print_defining_features
 from health_access.c_analysis_moran import create_weights_matrices, build_morans_table, compute_lisa
-from health_access.d_analysis_accessibility_4 import calculate_health_accessibility
+from health_access.d_analysis_accessibility_6 import calculate_health_accessibility
 #from health_access.d_analysis_accessibility_points import calculate_health_accessibility, verify_centroid_locations, save_interactive_verification
 from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, plot_network_accessibility, run_cluster_viz, plot_lisa, plot_hospital_distribution
 
