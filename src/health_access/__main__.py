@@ -34,10 +34,10 @@ CLUSTERING_FEATURES = [
 ]
 
 # Define the mapping for the point files
-POINT_MAPPING = {
-    "OD_emergency_care.geojson": "COUNT_EMERGENCY",
-    "OD_maternity_care.geojson": "COUNT_MATERNITY"
-}
+#POINT_MAPPING = {
+#    "OD_emergency_care.geojson": "COUNT_EMERGENCY",
+#    "OD_maternity_care.geojson": "COUNT_MATERNITY"
+#}
 
 
 @app.command()
@@ -54,12 +54,6 @@ def main(
         "-proj",
         help="EPSG Projection",
     ),
-    #target_col: int = typer.Option(
-    #    "EMERGENCY_PER_CAPITA",
-    #    "--target_moran_var",
-    #    "-moran",
-    #    help="Target variable for Moran's I analyses",
-    #),
     n_clusters: int = typer.Option(
         4, 
         "--n-clusters", 
@@ -120,6 +114,12 @@ def main(
         "-nl", 
         help="Add a legend to the cluster map." 
         ),
+    hospital_filter: bool = typer.Option(
+        True, 
+        "--hospital_filter", 
+        "-h_filter", 
+        help="Remove Level 2 Hospital Filter." 
+        ),
 ):
     
     # Loading Configuration
@@ -137,6 +137,9 @@ def main(
     access_output = processed_dir / f"accessibility_{n_clusters}.geojson"
     viz_dir = project_root/"visualizations"
     viz_cluster_output = viz_dir / "cluster_viz"
+    # Load hospital points 
+    em_path  = transformed_dir / "OD_emergency_care.geojson"
+    mat_path = transformed_dir / "OD_maternity_care.geojson"
 
    # 1. PREPROCESSING: Transform (reproject) all raw files to EPSG:5514
     if not skip_project:
@@ -162,7 +165,21 @@ def main(
 
             # AGGREGATE POINTS
             logger.info("Aggregating point data...")
-            gdf = aggregate_poi(gdf, POINT_MAPPING, transformed_dir)
+
+            #LOOKING AT POINTS
+            emergency_gdf = gpd.read_file(em_path) #405
+            maternity_gdf = gpd.read_file(mat_path) #1741
+            if hospital_filter:
+                logger.info("Applying Level 2 Hospital Filter: Keeping only levels 1 and 2.")
+                emergency_gdf = emergency_gdf[emergency_gdf["level"] <= 2] #139
+                maternity_gdf = maternity_gdf[maternity_gdf["level"] <= 2] #115
+            else:
+                logger.info("Skipping hospital filtering: Using all available points (including ambulance stations).")
+
+            gdf = aggregate_poi(gdf, {
+                'COUNT_EMERGENCY': emergency_gdf, 
+                'COUNT_MATERNITY': maternity_gdf
+            })
             
             # Save the updated GDF to the variables file
             gdf.to_file(census_output, driver="GeoJSON")
@@ -226,15 +243,26 @@ def main(
 
             # Image B: Clusters + Points
             logger.info("Generating cluster map with point overlays...")
+
+            emergency_gdf = gpd.read_file(em_path) #405
+            maternity_gdf = gpd.read_file(mat_path) #1741
+            if hospital_filter:
+                emergency_gdf = emergency_gdf[emergency_gdf["level"] <= 2] #139
+                maternity_gdf = maternity_gdf[maternity_gdf["level"] <= 2] #115
+            else:
+                logger.info("Skipping hospital filtering: Using all available points (including ambulance stations).")
+
             create_cluster_map(
-                gdf = gdf_clustered, 
+                gdf = gdf_clustered,
                 basemap_gdf = gdf_vars,
-                project_root = project_root, 
-                n_clusters = n_clusters, 
-                with_points = True, 
-                point_mapping = POINT_MAPPING, 
-                points_dir = raw_dir, 
-                show_legend = show_legend,
+                project_root = project_root,
+                n_clusters = n_clusters,
+                with_points = True,
+                point_mapping = {
+                    "Emergency": emergency_gdf, 
+                    "Maternity": maternity_gdf
+                },
+                show_legend = True,
                 title = "ORP Clusters based on 9 Selected Variables with Care Locations"
             )
             logger.info(f"Visualization saved to: {saved_map_path}")
@@ -246,7 +274,7 @@ def main(
 
     #  CLUSTER CONT  - VISUALIZATION
     # Image A: Clusters only
-    if not clustering_viz:
+    if clustering_viz:
         logger.info("Generating individual cluster maps...")
         gdf_clustered = gpd.read_file(clustered_output)
         gdf_vars = gpd.read_file(census_output)
@@ -264,7 +292,6 @@ def main(
 
     # 3. ESDA
     # Analyzing patterns WITHIN each cluster
-    #NEED TO ADD FLAG
     if not skip_esda:
         logger.info("ESDA: Global Moran's and LISA analysis...")
             
@@ -328,21 +355,19 @@ def main(
             logger.info("Starting accessibility calculation...")
 
             gdf_clustered = gpd.read_file(clustered_output)
-        
-            # Load hospital points 
-            em_path  = raw_dir / "OD_emergency_care.geojson"
-            mat_path = raw_dir / "OD_maternity_care.geojson"
 
             if not em_path.exists() or not mat_path.exists():
-                logger.error("Hospital GeoJSON files not found in data/raw/. Skipping.")
+                logger.error("Hospital GeoJSON files not found in data/transformed/. Skipping.")
             else:
                 emergency_gdf = gpd.read_file(em_path)
                 maternity_gdf = gpd.read_file(mat_path)
 
-                # Keep only actual hospitals (levels 1 and 2), not ambulance stations
-                # Should this step be done in the preprocessing step? Or is it better to keep all points for other analyses?
-                emergency_gdf = emergency_gdf[emergency_gdf["level"] <= 2]
-                maternity_gdf = maternity_gdf[maternity_gdf["level"] <= 2]
+                if hospital_filter:
+                    logger.info("Applying Level 2 Hospital Filter: Keeping only levels 1 and 2.")
+                    emergency_gdf = emergency_gdf[emergency_gdf["level"] <= 2]
+                    maternity_gdf = maternity_gdf[maternity_gdf["level"] <= 2]
+                else:
+                    logger.info("Skipping hospital filtering: Using all available points (including ambulance stations).")
 
                 # Calculate travel times - this might take a few minutes
                 gdf_access = calculate_health_accessibility(
@@ -363,25 +388,6 @@ def main(
                 logger.info("Generating accessibility maps...")
 
                 gdf_access = gpd.read_file(access_output)
-
-                #LOOKING AT POINTS
-                #TESTING POITNS TO SEE HOW MANY THERE ARE
-                #em_path  = raw_dir / "OD_emergency_care.geojson"
-                #mat_path = raw_dir / "OD_maternity_care.geojson"
-                emergency_gdf = gpd.read_file(transformed_dir / "OD_emergency_care.geojson")
-                maternity_gdf = gpd.read_file(transformed_dir / "OD_maternity_care.geojson")
-                
-                emergency_gdf_norm = emergency_gdf #405
-                maternity_gdf_norm = maternity_gdf #1741
-
-                emergency_gdf = emergency_gdf[emergency_gdf["level"] <= 2] #139
-                maternity_gdf = maternity_gdf[maternity_gdf["level"] <= 2] #115
-                
-                #TESTING POITNS TO SEE HOW MANY THERE ARE
-                fig_dist = plot_hospital_distribution(gdf_access, emergency_gdf, maternity_gdf)
-                #plt.show()
-                fig_dist = plot_hospital_distribution(gdf_access, emergency_gdf_norm, maternity_gdf_norm)
-                #plt.show()
 
                 fig_em = plot_accessibility_map(
                     gdf=gdf_access,

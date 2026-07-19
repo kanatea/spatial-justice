@@ -11,6 +11,9 @@ import osmnx as ox
 # CLUSTER MAP
 #=======================================================================================
 
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import geopandas as gpd
 
 def create_cluster_map(
     gdf, 
@@ -18,62 +21,70 @@ def create_cluster_map(
     project_root, 
     n_clusters, 
     with_points=False, 
-    point_mapping=None, 
-    points_dir=None, 
+    point_mapping=None, # Expects { "Emergency": em_gdf, "Maternity": mat_gdf }
     show_legend=False, 
     title="Cluster Map"
 ):
-  
-    # Dynamic filename based on whether points are included
+    # Dynamic filename
     suffix = "with_points" if with_points else "no_points"
     output_path = project_root / f"visualizations/map_clusters_{n_clusters}_{suffix}.png"
-    output_path.parent.mkdir(parents=True, exist_ok=True) # Ensure the directory exists
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(12, 10))
 
-    #plot the clusters
-    basemap_gdf.plot(ax=ax, color='#f2f2f2', edgecolor='#d9d9d9', linewidth=0.5)
+    # 1. Plot the neutral grey basemap (Aesthetic from plot_hospital_distribution)
+    basemap_gdf.plot(ax=ax, color="#f2f2f2", edgecolor="#bcbcbc", linewidth=0.5)
 
+    # 2. Plot the clusters
     clusters = sorted(gdf['cluster'].unique())
+    # Professional color palette
     colors = ["#e6194b", "#4363d8", "#f58231", "#3cb44b", "#ffe119", "#f032e6", "#911eb4", "#42d4f4", "#a9a9a9"][:len(clusters)]
     color_map = {cluster: color for cluster, color in zip(clusters, colors)}
     gdf['color'] = gdf['cluster'].map(color_map)
 
-    # Plot the clusters on top of the grey basemap
     gdf.plot(color=gdf['color'], legend=False, ax=ax, edgecolor='white', linewidth=0.5)
 
-    # OVERLAY POINTS
+    # 3. OVERLAY POINTS (Using the specific aesthetics requested)
     point_handles = []
-    if with_points and point_mapping and points_dir:
-        point_colors = {"OD_emergency_care.geojson": "black", "OD_maternity_care.geojson": "violet"}
+    if with_points and point_mapping:
+        # Aesthetic Configuration: { Label: (Color, Marker) }
+        point_config = {
+            "Emergency": ("black", "o"), 
+            "Maternity": ("red", "x")
+        }
         
-        for filename, label in point_mapping.items():
-            p_path = points_dir / filename
-            if p_path.exists():
-                p_gdf = gpd.read_file(p_path)
-                if p_gdf.crs != gdf.crs:
-                    p_gdf = p_gdf.to_crs(gdf.crs)
-                
-                # Store the plot object to create a legend handle
-                p_plot = p_gdf.plot(
-                    ax=ax, 
-                    color=point_colors.get(filename, "black"), 
-                    markersize=5, 
-                    alpha=0.7, 
-                    label=label
-                )
-                # Create a proxy artist for the legend
-                point_handles.append(plt.Line2D([0], [0], marker='o', color='w', 
-                                              markerfacecolor=point_colors.get(filename, "black"), 
-                                              markersize=8, label=label))
+        for label, p_gdf in point_mapping.items():
+            if p_gdf.crs != gdf.crs:
+                p_gdf = p_gdf.to_crs(gdf.crs)
+            
+            # Get aesthetic settings or fallback to black/circle
+            color, marker = point_config.get(label, ("black", "o"))
+            
+            p_gdf.plot(
+                ax=ax, 
+                color=color, 
+                markersize=15, # Increased size per your distribution map
+                alpha=0.6, 
+                marker=marker,
+                label=label
+            )
+            
+            # Create a proxy artist for the legend that matches the marker style
+            point_handles.append(plt.Line2D([0], [0], 
+                                          marker=marker, 
+                                          color='w', 
+                                          markerfacecolor=color, 
+                                          markeredgecolor=color,
+                                          markersize=10, 
+                                          label=label))
 
     if show_legend:
         # Cluster patches
         patches = [mpatches.Patch(color=colors[i], label=f"Cluster {cluster}") for i, cluster in enumerate(clusters)]
         
-        # Combine cluster patches and point handles into one legend
+        # Combine cluster patches and point handles
         all_handles = patches + point_handles
-        ax.legend(handles=all_handles, loc="upper right", frameon=True)
+        ax.legend(handles=all_handles, loc="lower right", frameon=True)
     
     plt.title(f"{title} ({suffix}) --- {n_clusters} clusters", fontsize=15)
     ax.set_axis_off() 
@@ -118,7 +129,7 @@ def visualize_cluster_metrics(file, viz_dir, basemap_gdf):
             ax=ax, 
             legend=True, 
             cmap='RdYlGn', 
-            scheme='quantiles', 
+            scheme='natural_breaks',  #setting to natural jenks
             k=4,
             legend_kwds={'fmt': "{:.2f}"}
         )

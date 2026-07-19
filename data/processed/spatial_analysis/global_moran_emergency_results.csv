@@ -1,4 +1,4 @@
 W Type,Moran's I,p-value,z-score,Significant
-Queen,0.1444,0.001,3.5587,yes
-Rook,0.1471,0.001,3.5847,yes
-KNN (k=5),0.1465,0.001,3.6651,yes
+Queen,0.0452,0.116,1.1518,no
+Rook,0.0474,0.114,1.2116,no
+KNN (k=5),0.0225,0.258,0.6664,no

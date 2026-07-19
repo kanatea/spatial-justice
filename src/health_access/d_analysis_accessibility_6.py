@@ -54,7 +54,7 @@ def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
         }
 
         try:
-            response = requests.post(endpoint, json=payload, timeout=30)
+            response = requests.post(endpoint, json=payload, timeout=60)
             response.raise_for_status()
             data = response.json()
             
@@ -81,7 +81,7 @@ def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
                 }
                 
                 try:
-                    res = requests.post(endpoint, json=individual_payload, timeout=10)
+                    res = requests.post(endpoint, json=individual_payload, timeout=30)
                     res.raise_for_status()
                     res_data = res.json()
                     target_list = res_data.get("sources_to_targets", [[]])[0]
