@@ -9,6 +9,7 @@ from health_access.b_clustering import find_optimal_k, apply_clustering, export_
 from health_access.c_analysis_moran import create_weights_matrices, build_morans_table, compute_lisa
 from health_access.d_analysis_accessibility import calculate_health_accessibility
 from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, plot_network_accessibility, run_cluster_viz, plot_lisa
+from health_access.d_nodes_analysis import extract_intersection_nodes, get_valhalla_matrix, plot_node_accessibility
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,7 +37,6 @@ POINT_MAPPING = {
     "OD_emergency_care.geojson": "COUNT_EMERGENCY",
     "OD_maternity_care.geojson": "COUNT_MATERNITY"
 }
-
 
 @app.command()
 def main(
@@ -111,6 +111,17 @@ def main(
         "--no_legend", 
         "-nl", 
         help="Add a legend to the cluster map." 
+        ),
+    analysis_scope: str = typer.Option(
+        "COUNTRY",
+        "--scope",
+        help="Analysis scope option: 'PRAGUE' or 'COUNTRY'."
+        ),
+    skip_nodes: bool = typer.Option(
+        False, 
+        "--skip-nodes", 
+        "-sn", 
+        help="Skip street network node density/accessibility analysis."
         ),
 ):
     
@@ -304,7 +315,7 @@ def main(
         except Exception as e:
             logger.error(f"Spatial analysis failed: {e}")
                 #else:
-                #        logger.error("Clustered file missing. Skipping spatial analysis.")
+                #logger.error("Clustered file missing. Skipping spatial analysis.")
     else:
         logger.info("Skipping ESDA...")
 
@@ -336,6 +347,26 @@ def main(
                 emergency_gdf = emergency_gdf[emergency_gdf["level"] <= 2]
                 maternity_gdf = maternity_gdf[maternity_gdf["level"] <= 2]
 
+                # Dynamic geographic area filter switch
+                if analysis_scope == "PRAGUE":
+                    logger.info("Applying local spatial filter: Prague + Surroundings")
+                    lat_min, lat_max = 49.85, 50.25
+                    lon_min, lon_max = 14.15, 14.80
+                    
+                    emergency_gdf = emergency_gdf[
+                        emergency_gdf.geometry.y.between(lat_min, lat_max) & 
+                        emergency_gdf.geometry.x.between(lon_min, lon_max)
+                    ].copy()
+                    
+                    maternity_gdf = maternity_gdf[
+                        maternity_gdf.geometry.y.between(lat_min, lat_max) & 
+                        maternity_gdf.geometry.x.between(lon_min, lon_max)
+                    ].copy()
+                else:
+                    logger.info("Scope set to COUNTRY. Retaining nationwide care facilities.")
+
+                logger.info(f"Loaded {len(emergency_gdf)} Emergency and {len(maternity_gdf)} Maternity target locations.")
+                
                 # Calculate travel times - this might take a few minutes
                 gdf_access = calculate_health_accessibility(
                     gdf_clustered, emergency_gdf, maternity_gdf
@@ -403,6 +434,21 @@ def main(
                 )
     else:
         logger.info("Skipping accessibility (--skip-accessibility set).")
+
+    # 5. STREET NETWORK NODES ANALYSIS
+    # =========================================================================
+    if not skip_nodes:
+        logger.info("Starting street network node analysis...")
+        
+        # We pass the bbox dictionary directly into your analysis node code
+        run_nodes_analysis(
+            project_root=project_root,
+            bbox=bbox,                  # Passes None if COUNTRY, passes limits if PRAGUE
+            scope=analysis_scope,
+            output_dir=project_root / "visualizations"
+        )
+    else:
+        logger.info("Skipping street network node analysis (--skip-nodes / -sn set)."). ACCESSIBILITY ANALYSIS
 
     logger.info("Complete! :)")
 
