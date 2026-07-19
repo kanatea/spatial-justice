@@ -1,7 +1,7 @@
 import geopandas as gpd
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
+from matplotlib.colors import ListedColormap
 from pathlib import Path
 import pandas as pd
 import osmnx as ox
@@ -11,6 +11,9 @@ import osmnx as ox
 # CLUSTER MAP
 #=======================================================================================
 
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import geopandas as gpd
 
 def create_cluster_map(
     gdf, 
@@ -18,62 +21,70 @@ def create_cluster_map(
     project_root, 
     n_clusters, 
     with_points=False, 
-    point_mapping=None, 
-    points_dir=None, 
+    point_mapping=None, # Expects { "Emergency": em_gdf, "Maternity": mat_gdf }
     show_legend=False, 
     title="Cluster Map"
 ):
-  
-    # Dynamic filename based on whether points are included
+    # Dynamic filename
     suffix = "with_points" if with_points else "no_points"
     output_path = project_root / f"visualizations/map_clusters_{n_clusters}_{suffix}.png"
-    output_path.parent.mkdir(parents=True, exist_ok=True) # Ensure the directory exists
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(12, 10))
 
-    #plot the clusters
-    basemap_gdf.plot(ax=ax, color='#f2f2f2', edgecolor='#d9d9d9', linewidth=0.5)
+    # 1. Plot the neutral grey basemap (Aesthetic from plot_hospital_distribution)
+    basemap_gdf.plot(ax=ax, color="#f2f2f2", edgecolor="#bcbcbc", linewidth=0.5)
 
+    # 2. Plot the clusters
     clusters = sorted(gdf['cluster'].unique())
+    # Professional color palette
     colors = ["#e6194b", "#4363d8", "#f58231", "#3cb44b", "#ffe119", "#f032e6", "#911eb4", "#42d4f4", "#a9a9a9"][:len(clusters)]
     color_map = {cluster: color for cluster, color in zip(clusters, colors)}
     gdf['color'] = gdf['cluster'].map(color_map)
 
-    # Plot the clusters on top of the grey basemap
     gdf.plot(color=gdf['color'], legend=False, ax=ax, edgecolor='white', linewidth=0.5)
 
-    # OVERLAY POINTS
+    # 3. OVERLAY POINTS (Using the specific aesthetics requested)
     point_handles = []
-    if with_points and point_mapping and points_dir:
-        point_colors = {"OD_emergency_care.geojson": "black", "OD_maternity_care.geojson": "violet"}
+    if with_points and point_mapping:
+        # Aesthetic Configuration: { Label: (Color, Marker) }
+        point_config = {
+            "Emergency": ("black", "o"), 
+            "Maternity": ("red", "x")
+        }
         
-        for filename, label in point_mapping.items():
-            p_path = points_dir / filename
-            if p_path.exists():
-                p_gdf = gpd.read_file(p_path)
-                if p_gdf.crs != gdf.crs:
-                    p_gdf = p_gdf.to_crs(gdf.crs)
-                
-                # Store the plot object to create a legend handle
-                p_plot = p_gdf.plot(
-                    ax=ax, 
-                    color=point_colors.get(filename, "black"), 
-                    markersize=5, 
-                    alpha=0.7, 
-                    label=label
-                )
-                # Create a proxy artist for the legend
-                point_handles.append(plt.Line2D([0], [0], marker='o', color='w', 
-                                              markerfacecolor=point_colors.get(filename, "black"), 
-                                              markersize=8, label=label))
+        for label, p_gdf in point_mapping.items():
+            if p_gdf.crs != gdf.crs:
+                p_gdf = p_gdf.to_crs(gdf.crs)
+            
+            # Get aesthetic settings or fallback to black/circle
+            color, marker = point_config.get(label, ("black", "o"))
+            
+            p_gdf.plot(
+                ax=ax, 
+                color=color, 
+                markersize=15, # Increased size per your distribution map
+                alpha=0.6, 
+                marker=marker,
+                label=label
+            )
+            
+            # Create a proxy artist for the legend that matches the marker style
+            point_handles.append(plt.Line2D([0], [0], 
+                                          marker=marker, 
+                                          color='w', 
+                                          markerfacecolor=color, 
+                                          markeredgecolor=color,
+                                          markersize=10, 
+                                          label=label))
 
     if show_legend:
         # Cluster patches
         patches = [mpatches.Patch(color=colors[i], label=f"Cluster {cluster}") for i, cluster in enumerate(clusters)]
         
-        # Combine cluster patches and point handles into one legend
+        # Combine cluster patches and point handles
         all_handles = patches + point_handles
-        ax.legend(handles=all_handles, loc="upper right", frameon=True)
+        ax.legend(handles=all_handles, loc="lower right", frameon=True)
     
     plt.title(f"{title} ({suffix}) --- {n_clusters} clusters", fontsize=15)
     ax.set_axis_off() 
@@ -118,7 +129,7 @@ def visualize_cluster_metrics(file, viz_dir, basemap_gdf):
             ax=ax, 
             legend=True, 
             cmap='RdYlGn', 
-            scheme='quantiles', 
+            scheme='natural_breaks',  #setting to natural jenks
             k=4,
             legend_kwds={'fmt': "{:.2f}"}
         )
@@ -151,45 +162,58 @@ def run_cluster_viz(clusters_dir, viz_dir, basemap_gdf):
 #======================================================================================
 # MORAN VIZ
 #=======================================================================================
-def plot_lisa_overlay(gdf_clustered, lisa_results, output_path):
+
+def plot_lisa(gdf_lisa, output_path):
+    """
+    Creates a standard LISA visualization showing all clusters 
+    (Hotspots, Coldspots, LH, HL).
+    """
     fig, ax = plt.subplots(figsize=(12, 12))
     
-    if 'lisa_cluster' not in gdf_clustered.columns:
-        category_map = {0: 'Insignificant', 1: 'Hotspot (HH)', 2: 'Low-High (LH)', 3: 'Coldspot (LL)', 4: 'High-Low (HL)'}
-        gdf_clustered['lisa_cluster'] = [category_map[val] for val in lisa_results.q]
+    # 1. Define the standard LISA color palette
+    # HH: Red, LH: Light Blue, LL: Blue, HL: Light Red, Insignificant: Grey
+    lisa_colors = {
+        'Hotspot (HH)': '#d7191c',      # Deep Red
+        'Coldspot (LL)': '#2c7bb6',     # Deep Blue
+        'Low-High (LH)': '#abd9e9',     # Light Blue
+        'High-Low (HL)': '#fdae61',     # Light Orange/Red
+        'Insignificant': '#eeeeee'      # Light Grey
+    }
+    
+    # Create a custom colormap based on the order of categories in the data
+    # We ensure the mapping is consistent
+    categories = ['Hotspot (HH)', 'Coldspot (LL)', 'Low-High (LH)', 'High-Low (HL)', 'Insignificant']
+    colors = [lisa_colors[cat] for cat in categories]
+    cmap = ListedColormap(colors)
+    
+    # 2. Map the 'lisa_cluster' column to integers to use the colormap
+    # This ensures that 'Hotspot (HH)' always gets the first color, etc.
+    cat_to_int = {cat: i for i, cat in enumerate(categories)}
+    gdf_lisa['lisa_color_idx'] = gdf_lisa['lisa_cluster'].map(cat_to_int)
 
-    # 1. Plot the socio-economic clusters as the base layer
-    gdf_clustered.plot(
-        column='cluster', 
+    # 3. Plot the GDF
+    gdf_lisa.plot(
+        column='lisa_color_idx', 
         ax=ax, 
-        cmap='Pastel1', 
-        legend=True, 
-        legend_kwds={'label': "Socio-Economic Cluster"}
+        cmap=cmap, 
+        edgecolor='black', 
+        linewidth=0.2
     )
     
-    # 2. Filter the Coldspots
-    coldspots = gdf_clustered[gdf_clustered['lisa_cluster'] == 'Coldspot (LL)']
+    # 4. Create a custom legend
+    # Since we used a custom colormap, we create manual patches for the legend
+    legend_handles = [
+        mpatches.Patch(color=lisa_colors[cat], label=cat) 
+        for cat in categories
+    ]
     
-    # 3. Overlay the Coldspots
-    if not coldspots.empty:
-        coldspots.plot(
-            ax=ax, 
-            color='red', 
-            edgecolor='black', 
-            linewidth=1
-        )
-        
-        # 4. FIX: Create a manual proxy artist for the legend
-        # This creates a small red square for the legend without needing to link it to the plot
-        red_patch = mpatches.Patch(facecolor='red', edgecolor='black', label='Care Center Desert (Coldspot)')
-        plt.legend(handles=[red_patch])
-    else:
-        # If no coldspots, we still want the socio-economic legend to show, 
-        # but we don't need the red patch.
-        plt.legend()
+    plt.legend(handles=legend_handles, loc='upper right', title="LISA Clusters", frameon=True)
     
-    plt.title("Care Center Deserts vs. Socio-Economic Clusters")
-    plt.savefig(output_path)
+    # 5. Clean up the visual
+    ax.set_axis_off() # Remove the lat/lon axis for a cleaner look
+    plt.title("Spatial Autocorrelation of Healthcare Access (LISA)", fontsize=15)
+    
+    plt.savefig(output_path, bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -197,6 +221,39 @@ def plot_lisa_overlay(gdf_clustered, lisa_results, output_path):
 #======================================================================================
 # ACCESSIBILITY
 #=======================================================================================
+def plot_hospital_distribution(orp_gdf, em_gdf, mat_gdf):
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    # 1. Plot the ORP boundaries as a neutral grey background
+    orp_gdf.plot(ax=ax, color="#f2f2f2", edgecolor="#bcbcbc", linewidth=0.5)
+
+    # 2. Plot Emergency Hospitals (Blue)
+    em_gdf.plot(
+        ax=ax, 
+        color="blue", 
+        markersize=15, 
+        alpha=0.6, 
+        label="Emergency (Lvl 1-2)",
+        marker='o'
+    )
+
+    # 3. Plot Maternity Hospitals (Red)
+    mat_gdf.plot(
+        ax=ax, 
+        color="red", 
+        markersize=15, 
+        alpha=0.6, 
+        label="Maternity (Lvl 1-2)",
+        marker='x' # Use an 'x' so you can see when they overlap
+    )
+
+    ax.set_title("Distribution of Emergency vs. Maternity Hospitals (Level 1-2)", fontsize=14)
+    ax.legend(loc="lower right")
+    ax.set_axis_off()
+    
+    plt.tight_layout()
+    return fig
+
 
 
 def plot_accessibility_map(
@@ -207,22 +264,30 @@ def plot_accessibility_map(
     poi_type:     str,
     cmap:         str,
     show_legend:  bool = True,
+    label_districts: bool = True, # Added toggle for labels
 ) -> plt.Figure:
     """
     Choropleth map of an accessibility metric across districts.
-    RdYlGn_r: red = poor access (high distance), green = good access.
+    RdYlGn_r: red = poor access (high travel time), green = good access.
     """
-    if title is None:
-        title = f"{column} to nearest {poi_type} (meters)"
+    fig, ax = plt.subplots(figsize=(12, 12))
 
-    fig, ax = plt.subplots(figsize=(10, 10))
+    # 1. Base layer: Plot all polygons in light grey to handle NaNs
+    gdf.plot(
+        ax=ax, 
+        color="#d3d3d3", 
+        edgecolor="white", 
+        linewidth=0.5
+    )
+
+    # 2. Data layer: Plot the travel times
     gdf.plot(
         column=column,
-        cmap="RdYlGn_r",
+        cmap=cmap,
         legend=show_legend,
         legend_kwds={
             "label": "Travel time (minutes)",
-            "shrink": 0.6,
+            "shrink": 0.5,
             "orientation": "horizontal",
         },
         edgecolor="white",
@@ -230,32 +295,31 @@ def plot_accessibility_map(
         ax=ax,
     )
 
-
-    # label each district
-    for _, row in gdf.iterrows():
-        if pd.notna(row[column]):
+    # 3. District Labels (Optional)
+    if label_districts:
+        for _, row in gdf.iterrows():
+            # Use the centroid of the geometry for text placement
+            centroid = row.geometry.centroid
             ax.annotate(
                 row[district_col],
-                xy=(row.geometry.centroid.x, row.geometry.centroid.y),
-                fontsize=5,
+                xy=(centroid.x, centroid.y),
+                fontsize=6,
                 ha="center",
+                va="center",
                 color="black",
+                alpha=0.7
             )
-    ax.set_title(title, fontsize=13, pad=12)
-    ax.annotate(
-        "Red = maternity takes longer than emergency\nGreen = emergency takes longer than maternity",
-        xy=(0.02, 0.02),
-        xycoords="axes fraction",
-        fontsize=8,
-        color="#444444",
-    )
+
+    ax.set_title(title, fontsize=15, pad=20)
     ax.set_axis_off()
+    
     return fig
 
 
 
 def plot_access_vs_socio(
     gdf:          gpd.GeoDataFrame,
+    travel_col:   str,
     socio_col:    str,
     district_col: str,
     poi_type:     str,
@@ -269,11 +333,11 @@ def plot_access_vs_socio(
     (high distance + high poverty) are experiencing compound
     deprivation — the core spatial justice finding.
     """
-    data = gdf[[district_col, "travel_time", socio_col]].dropna()
+    data = gdf[[district_col, travel_col, socio_col]].dropna()
 
     fig, ax = plt.subplots(figsize=(9, 7))
     ax.scatter(
-        data["travel_time"],
+        data[travel_col],
         data[socio_col],
         color="steelblue",
         alpha=0.7,
@@ -286,20 +350,20 @@ def plot_access_vs_socio(
     for _, row in data.iterrows():
         ax.annotate(
             row[district_col],
-            xy=(row["travel_time"], row[socio_col]),
+            xy=(row[travel_col], row[socio_col]),
             fontsize=7,
             xytext=(4, 4),
             textcoords="offset points",
         )
 
     # quadrant lines at medians
-    ax.axvline(data["travel_time"].median(), color="grey",
+    ax.axvline(data[travel_col].median(), color="grey",
                linestyle="--", linewidth=0.8, alpha=0.6)
     ax.axhline(data[socio_col].median(), color="grey",
                linestyle="--", linewidth=0.8, alpha=0.6)
 
     # annotate quadrants
-    xmax = data["travel_time"].max()
+    xmax = data[travel_col].max()
     ymax = data[socio_col].max()
     ax.text(xmax * 0.98, ymax * 0.98, "Compound\ndeprivation",
             ha="right", va="top", fontsize=8,
