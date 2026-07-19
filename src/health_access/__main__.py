@@ -3,12 +3,14 @@ import geopandas as gpd
 import sys
 import typer
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 from health_access.a_preprocessing import transform_projections, standardize_data, aggregate_poi
 from health_access.b_clustering import find_optimal_k, apply_clustering, export_clusters_separately, print_cluster_characteristics, print_defining_features
 from health_access.c_analysis_moran import create_weights_matrices, build_morans_table, compute_lisa
-from health_access.d_analysis_accessibility import calculate_health_accessibility
-from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, plot_network_accessibility, run_cluster_viz, plot_lisa
+from health_access.d_analysis_accessibility_4 import calculate_health_accessibility
+#from health_access.d_analysis_accessibility_points import calculate_health_accessibility, verify_centroid_locations, save_interactive_verification
+from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, plot_network_accessibility, run_cluster_viz, plot_lisa, plot_hospital_distribution
 
 logging.basicConfig(
     level=logging.INFO,
@@ -105,6 +107,12 @@ def main(
         "--skip-accessibility", 
         "-sa", 
         help="Skip accessibility analysis step."
+        ),
+    skip_accessibility_viz: bool = typer.Option( # define
+        False, 
+        "--skip-accessibility-viz", 
+        "-sav", 
+        help="Skip accessibility visualization step."
         ),
     show_legend: bool = typer.Option(
         True, 
@@ -310,7 +318,7 @@ def main(
 
     
 
-    # 4. ACCESSIBILITY ANALYSIS
+# 4. ACCESSIBILITY ANALYSIS
     # RUNS USING VALHALLA - WE NEED TO ACTIVATE THAT USING DOCKER
     # we could divide this step into a separate script OR have at least separated some steps - the user could choose only some of them using flags.
     if not skip_accessibility:
@@ -320,8 +328,8 @@ def main(
             logger.info("Starting accessibility calculation...")
 
             gdf_clustered = gpd.read_file(clustered_output)
-
-            # Load hospital points (only actual hospitals, levels 1 and 2)
+        
+            # Load hospital points 
             em_path  = raw_dir / "OD_emergency_care.geojson"
             mat_path = raw_dir / "OD_maternity_care.geojson"
 
@@ -343,12 +351,41 @@ def main(
 
                 gdf_access.to_file(access_output, driver="GeoJSON")
                 logger.info(f"Accessibility data saved to: {access_output}")
+    else:
+        logger.info("Skipping Accessibility Calculation...")
 
-                # MAP: plot_accessibility_map for emergency units
+
+    #ACCESSIBILITY VISUALIZATION 
+    if not skip_accessibility_viz:
+            if not access_output.exists():
+                logger.error("Accessibility file missing. Run accessibility calculation first.")
+            else:
                 logger.info("Generating accessibility maps...")
+
+                gdf_access = gpd.read_file(access_output)
+
+                #LOOKING AT POINTS
+                #TESTING POITNS TO SEE HOW MANY THERE ARE
+                #em_path  = raw_dir / "OD_emergency_care.geojson"
+                #mat_path = raw_dir / "OD_maternity_care.geojson"
+                emergency_gdf = gpd.read_file(transformed_dir / "OD_emergency_care.geojson")
+                maternity_gdf = gpd.read_file(transformed_dir / "OD_maternity_care.geojson")
+                
+                emergency_gdf_norm = emergency_gdf #405
+                maternity_gdf_norm = maternity_gdf #1741
+
+                emergency_gdf = emergency_gdf[emergency_gdf["level"] <= 2] #139
+                maternity_gdf = maternity_gdf[maternity_gdf["level"] <= 2] #115
+                
+                #TESTING POITNS TO SEE HOW MANY THERE ARE
+                fig_dist = plot_hospital_distribution(gdf_access, emergency_gdf, maternity_gdf)
+                #plt.show()
+                fig_dist = plot_hospital_distribution(gdf_access, emergency_gdf_norm, maternity_gdf_norm)
+                #plt.show()
+
                 fig_em = plot_accessibility_map(
                     gdf=gdf_access,
-                    column="travel_time_emergency",
+                    column="time_emergency",
                     district_col="NAZ_ORP",
                     title="Travel Time to Nearest Emergency Hospital (minutes)",
                     poi_type="emergency hospital",
@@ -362,10 +399,10 @@ def main(
                     bbox_inches="tight", dpi=300
                     )
 
-                # Map C: plot_accessibility_map (travel time choropleth) for maternity units
+                # Map C: maternity map
                 fig_mat = plot_accessibility_map(
                     gdf=gdf_access,
-                    column="travel_time_maternity",
+                    column="time_maternity",
                     district_col="NAZ_ORP",
                     title="Travel Time to Nearest Maternity Hospital (minutes)",
                     poi_type="maternity hospital",
@@ -385,24 +422,40 @@ def main(
                 #    gdf=gdf_access,
                 #    output_path=project_root / "visualizations/map_access_gap.png",
                 #)
-
-                gdf_access["travel_time"] = gdf_access["travel_time_maternity"]
+                gdf_access_gap = gdf_access.copy()
                 
-                # MAP: scatter - travel time vs elderly population (for example)
+                # MAP: scatter - maternity travel time vs elderly population (for example)
                 fig_scatter = plot_access_vs_socio(
-                    gdf=gdf_access,
+                    gdf=gdf_access_gap,
+                    travel_col = "time_maternity",
                     socio_col="PCT_ELDERLY",
                     district_col="NAZ_ORP",
                     poi_type="maternity hospital",
-                    max_distance=gdf_access["travel_time"].max(),
+                    max_distance=gdf_access_gap["time_maternity"].max(),
                     show_legend=show_legend,
                 )
                 fig_scatter.savefig(
                     project_root / "visualizations/scatter_maternity_vs_elderly.png",
                     bbox_inches="tight", dpi=300
                 )
+
+                # MAP: scatter - emergency travel time vs elderly population (for example)
+                fig_scatter = plot_access_vs_socio(
+                    gdf=gdf_access_gap,
+                    travel_col = "time_emergency",
+                    socio_col="PCT_ELDERLY",
+                    district_col="NAZ_ORP",
+                    poi_type="emergency hospital",
+                    max_distance=gdf_access_gap["time_emergency"].max(),
+                    show_legend=show_legend,
+                )
+                fig_scatter.savefig(
+                    project_root / "visualizations/scatter_emergency_vs_elderly.png",
+                    bbox_inches="tight", dpi=300
+                )
     else:
-        logger.info("Skipping accessibility (--skip-accessibility set).")
+        logger.info("Skipping accessibility map (--skip-accessibility-maps set).")
+
 
     logger.info("Complete! :)")
 

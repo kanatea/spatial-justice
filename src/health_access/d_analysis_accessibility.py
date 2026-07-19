@@ -1,9 +1,13 @@
-
-import requests
-
-
-import geopandas as gpd
+import logging
 import time
+import requests
+import numpy as np
+import pandas as pd
+import geopandas as gpd
+import requests
+import time
+
+#download https://download.geofabrik.de/europe/czech-republic.html
 
 VALHALLA_URL = "http://localhost:8002"
 
