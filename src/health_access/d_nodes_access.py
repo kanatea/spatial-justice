@@ -14,7 +14,7 @@ VALHALLA_API_URL = "http://localhost:8002"
 VALHALLA_MATRIX_LIMIT = 2400
 
 # File Paths
-OSM_PBF_PATH = r"C:\Users\marie\Projects\spatial-justice\valhalla_tiles\praha-latest.osm.pbf"
+OSM_PBF_PATH = r"C:\Users\marie\Projects\spatial-justice\valhalla_tiles\praha-260714.osm.pbf"
 
 # NEW OUTPUT PATHS (Saving inside the 'nodes' subdirectory):
 OUTPUT_GEOJSON_PATH = r"C:\Users\marie\Projects\spatial-justice\spatial-justice\data\processed\nodes\nodes_accessibility.geojson"
@@ -57,7 +57,7 @@ def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
     total_targets = len(targets)
     
     calculated_batch_size = int(VALHALLA_MATRIX_LIMIT / total_targets)
-    batch_size = max(1, min(calculated_batch_size, 50))
+    batch_size = max(1, min(calculated_batch_size, 5))
     
     logger.info(f"⚡ Calculated Batch Size: {batch_size} nodes per request.")
     min_travel_times = [None] * total_sources
