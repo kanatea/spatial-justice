@@ -258,7 +258,7 @@ def main(
 
     #  CLUSTER CONT  - VISUALIZATION
     # Consolidates all 6 metrics into unified grid layouts per cluster
-    if not clustering_viz:  # FIXED: Changed from 'if not clustering_viz:' to let it run by default
+    if not clustering_viz:
         logger.info("Generating individual cluster profiles...")
         
         if not clusters_dir.exists() or not list(clusters_dir.glob("cluster_*.geojson")):
