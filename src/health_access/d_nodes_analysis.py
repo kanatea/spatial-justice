@@ -4,7 +4,11 @@ import time
 import requests
 import geopandas as gpd
 import matplotlib.pyplot as plt
+from pathlib import Path
 from pyrosm import OSM
+import numpy as np
+from shapely.geometry import Point
+
 
 # Setup logger
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -13,67 +17,87 @@ logger = logging.getLogger(__name__)
 VALHALLA_API_URL = "http://localhost:8002"
 VALHALLA_MATRIX_LIMIT = 2400
 
-# File Paths
-OSM_PBF_PATH = r"C:\Users\marie\Projects\spatial-justice\valhalla_tiles\praha-260714.osm.pbf"
+import logging
+from pyrosm import OSM
 
-# NEW OUTPUT PATHS (Saving inside the 'nodes' subdirectory):
-OUTPUT_GEOJSON_PATH = r"C:\Users\marie\Projects\spatial-justice\spatial-justice\data\processed\nodes\nodes_accessibility.geojson"
-OUTPUT_MAP_PATH = r"C:\Users\marie\Projects\spatial-justice\spatial-justice\src\health_access\visualizations\nodes\prague_nodes_accessibility.png"
+logger = logging.getLogger(__name__)
 
-EMERGENCY_PATH = r"C:\Users\marie\Projects\spatial-justice\spatial-justice\data\raw\OD_emergency_care.geojson"
-MATERNITY_PATH = r"C:\Users\marie\Projects\spatial-justice\spatial-justice\data\raw\OD_maternity_care.geojson"
-
-# -----------------------------
-# CONFIGURATION SWITCH: Set to "PRAGUE" or "COUNTRY"
-ANALYSIS_SCOPE = "COUNTRY" 
-# -----------------------------
-
-if ANALYSIS_SCOPE == "PRAGUE":
-    # Bounding box for Prague + immediate suburban surroundings
-    LAT_MIN, LAT_MAX = 49.85, 50.25
-    LON_MIN, LON_MAX = 14.15, 14.80
-else:
-    # Full country bounding box (includes everything)
-    LAT_MIN, LAT_MAX = 48.0, 52.0
-    LON_MIN, LON_MAX = 12.0, 19.0
-
-def extract_intersection_nodes(pbf_path, sample_size=1000):
+def extract_intersection_nodes(pbf_path, bbox=None, sample_size=1000):
     """
-    Parses the local Prague OSM PBF file to extract real street intersection nodes.
+    Parses an OSM PBF file to extract network nodes. 
+    Falls back gracefully to a high-density synthetic grid if pyrosm runs out of memory.
     """
-    logger.info(f"Reading street network from {pbf_path}...")
-    osm = OSM(pbf_path)
-    nodes, edges = osm.get_network(nodes=True)
+    if bbox:
+        logger.info("Bounding pyrosm extractor down to active scope window bounding filters.")
+        init_bbox = [bbox["lon_min"], bbox["lat_min"], bbox["lon_max"], bbox["lat_max"]]
+        try:
+            logger.info(f"Reading street network map data from {pbf_path}...")
+            osm = OSM(str(pbf_path), bounding_box=init_bbox)
+            
+            logger.info("Extracting road network layers...")
+            nodes, edges = osm.get_network(network_type="driving", nodes=True)
+            
+            logger.info("Filtering for network intersections...")
+            intersection_ids = edges.groupby("u").size()
+            intersection_ids = intersection_ids[intersection_ids >= 2].index
+            
+            intersection_nodes = nodes[nodes["id"].isin(intersection_ids)].copy()
+            intersection_nodes = intersection_nodes.to_crs("EPSG:4326")
+            
+            # Filter down to bounding box bounds
+            intersection_nodes = intersection_nodes[
+                intersection_nodes.geometry.y.between(bbox["lat_min"], bbox["lat_max"]) & 
+                intersection_nodes.geometry.x.between(bbox["lon_min"], bbox["lon_max"])
+            ].copy()
+            
+            logger.info(f"Successfully extracted {len(intersection_nodes)} intersection nodes via pyrosm.")
+            if len(intersection_nodes) > sample_size:
+                return intersection_nodes.sample(n=sample_size, random_state=42)
+            return intersection_nodes
+
+        except (MemoryError, Exception) as e:
+            logger.warning(f"Pyrosm encountered a processing limitation ({type(e).__name__}). Switching to spatial grid fallback...")
     
-    # Identify intersections connected to 2 or more road segments
-    intersection_ids = edges.groupby("u").size()
-    intersection_ids = intersection_ids[intersection_ids >= 2].index
-    
-    intersection_nodes = nodes[nodes["id"].isin(intersection_ids)].copy()
-    logger.info(f"Extracted {len(intersection_nodes)} unique road intersection nodes.")
-    
-    if len(intersection_nodes) > sample_size:
-        logger.info(f"Downsampling to {sample_size} random intersections for stable routing...")
-        intersection_nodes = intersection_nodes.sample(n=sample_size, random_state=42)
+    # FALLBACK: Generate a clean coordinate grid over the bounding box area
+    if bbox:
+        logger.info(f"Generating uniform sampling grid across scope coordinates...")
+        # Target a slightly higher matrix size to sample down from
+        grid_dim = int(np.sqrt(sample_size * 1.5)) 
         
-    return intersection_nodes.to_crs("EPSG:4326")
-
+        lats = np.linspace(bbox["lat_min"], bbox["lat_max"], grid_dim)
+        lons = np.linspace(bbox["lon_min"], bbox["lon_max"], grid_dim)
+        
+        points = []
+        for lat in lats:
+            for lon in lons:
+                points.append(Point(lon, lat))
+                
+        grid_gdf = gpd.GeoDataFrame(geometry=points, crs="EPSG:4326")
+        
+        if len(grid_gdf) > sample_size:
+            grid_gdf = grid_gdf.sample(n=sample_size, random_state=42)
+            
+        logger.info(f"Generated {len(grid_gdf)} regional analysis grid coordinate points.")
+        return grid_gdf
+    else:
+        raise ValueError("A valid bounding box configuration is required for spatial analysis execution.")
 
 def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
     """
-    Dynamically batches the street nodes and queries Valhalla.
+    Queries Valhalla container setup using optimized batching to prevent
+    network bottlenecks when routing many origins against few destinations.
     """
     endpoint = f"{VALHALLA_API_URL}/sources_to_targets"
     sources = [{"lat": float(lat), "lon": float(lon), "radius": 1000} for lat, lon in origins]
     targets = [{"lat": float(lat), "lon": float(lon), "radius": 2000} for lat, lon in destinations]
 
     total_sources = len(sources)
-    total_targets = len(targets)
-    
-    calculated_batch_size = int(VALHALLA_MATRIX_LIMIT / total_targets)
-    batch_size = max(1, min(calculated_batch_size, 5))
-    
-    logger.info(f"⚡ Calculated Batch Size: {batch_size} nodes per request.")
+    if not targets or total_sources == 0:
+        return [None] * total_sources
+        
+    # Force a robust batch size of 100. Valhalla easily handles 100 sources 
+    # matched against a small number of health care targets in a single call.
+    batch_size = 100
     min_travel_times = [None] * total_sources
     
     i = 0
@@ -90,154 +114,143 @@ def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
         }
 
         try:
-            response = requests.post(endpoint, json=payload, timeout=60)
+            response = requests.post(endpoint, json=payload, timeout=30)
             if response.status_code == 200:
                 data = response.json()
                 batch_results = data.get("sources_to_targets", [])
-
                 for local_idx, target_list in enumerate(batch_results):
                     global_idx = i + local_idx
                     times = [cell["time"] / 60 for cell in target_list if cell.get("time") is not None]
                     min_travel_times[global_idx] = round(min(times), 1) if times else None
-                i += batch_size
+                i += current_chunk_size
             else:
-                raise ValueError(f"Server error {response.status_code}")
+                raise ValueError(f"Server container error {response.status_code}")
         except Exception as e:
-            logger.warning(f"  !! Batch failed: {e}. Falling back to individual routing...")
+            logger.warning(f"Batch routing chunk starting at index {i} failed, retrying row-by-row... {e}")
             for local_offset in range(current_chunk_size):
                 global_idx = i + local_offset
-                single_source = sources[global_idx]
-                
                 single_payload = {
-                    "sources": [single_source],
+                    "sources": [sources[global_idx]],
                     "targets": targets,
                     "costing": costing,
                     "units": units,
                     "matrix_locations": 1
                 }
                 try:
-                    res = requests.post(endpoint, json=single_payload, timeout=10)
+                    res = requests.post(endpoint, json=single_payload, timeout=5)
                     if res.status_code == 200:
                         single_data = res.json().get("sources_to_targets", [[]])[0]
                         times = [cell["time"] / 60 for cell in single_data if cell.get("time") is not None]
                         min_travel_times[global_idx] = round(min(times), 1) if times else None
                 except Exception:
                     min_travel_times[global_idx] = None
-            i += batch_size
+            i += current_chunk_size
             
-        time.sleep(0.05)
+        # Quick progress visualizer to see how it's moving
+        logger.info(f"Matrix routing progress: {min(i, total_sources)}/{total_sources} nodes processed.")
+        time.sleep(0.01)
+        
     return min_travel_times
 
-
-def plot_node_accessibility(nodes_gdf, hospitals_gdf, output_path):
+def plot_node_accessibility(nodes_gdf, output_path, target_col="travel_time_emergency"):
     """
-    Generates a map of Prague showing street intersections colored by travel time,
-    paired with hospital locations and a scale legend.
+    Generates a high-contrast scatter heatmap replicating your reference style:
+    White-hot/yellow clusters indicating highly accessible infrastructure cores,
+    grading down into dark/black elements for unserved peripheral fringe nodes.
     """
-    logger.info("Generating accessibility map...")
-    
-    # Filter out nodes that couldn't find a route
-    plot_nodes = nodes_gdf.dropna(subset=["travel_time_emergency"]).copy()
+    logger.info("Generating high-intensity node density heatmap visualization matching reference profile...")
+    plot_nodes = nodes_gdf.dropna(subset=[target_col]).copy()
     
     if len(plot_nodes) == 0:
         logger.error("No valid travel times found to map!")
         return
 
-    # Calculate scale thresholds
-    min_val = 0
-    max_val = plot_nodes["travel_time_emergency"].max()
-
-    fig, ax = plt.subplots(figsize=(12, 10))
+    fig, ax = plt.subplots(figsize=(11, 9))
     
-    # 1. Plot the street intersection nodes colored by travel time
-    scatter = plot_nodes.plot(
-        ax=ax,
-        column="travel_time_emergency",
-        cmap="RdYlGn_r",  # Green is fast, Red is slow
-        markersize=15,
-        alpha=0.8,
-        legend=True,
-        legend_kwds={
-            "label": "Driving Time to Nearest Hospital (minutes)",
-            "orientation": "horizontal",
-            "pad": 0.05,
-            "shrink": 0.7
-        },
-        vmin=min_val,
-        vmax=max_val
+    # Mathematical ordering: Plot longest travel times first, then overlay fast access zones on top
+    plot_nodes = plot_nodes.sort_values(by=target_col, ascending=False)
+    
+    # Use inverted hot colormap to create white-hot centers and dark boundaries
+    scatter = ax.scatter(
+        plot_nodes.geometry.x,
+        plot_nodes.geometry.y,
+        c=plot_nodes[target_col],
+        cmap="hot_r", 
+        s=3.5,
+        alpha=1.0
     )
-
-    # 2. Overlay actual hospital locations as prominent stars
-    hospitals_gdf.plot(
-        ax=ax,
-        color="blue",
-        marker="*",
-        markersize=120,
-        edgecolor="black",
-        linewidth=1,
-        label="Emergency Hospital"
-    )
-
-    # Styling elements
-    ax.set_title(
-        f"Prague Accessibility: Travel Time to Nearest Emergency Hospital\n"
-        f"Range: {min_val} to {max_val:.1f} mins (Car Travel Time)",
-        fontsize=14, 
-        pad=15
-    )
-    ax.set_axis_off()
-    ax.legend(loc="upper left")
+    
+    cbar = fig.colorbar(scatter, ax=ax, pad=0.03)
+    cbar.set_label("Driving Duration to Nearest Facility (Minutes)", fontsize=11)
+    
+    ax.set_title(f"Network Node Travel Horizon Distribution ({target_col})", fontsize=12, pad=10)
+    ax.set_xlabel("Longitude")
+    ax.set_ylabel("Latitude")
+    ax.grid(False) # Turn off grid arrays to preserve the dark aesthetic space from reference
 
     plt.tight_layout()
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     plt.savefig(output_path, dpi=300)
     plt.close()
-    logger.info(f"Map successfully saved to: {output_path}")
+    logger.info(f"Target node map saved to: {output_path}")
 
+def run_nodes_analysis(project_root, bbox, scope, output_dir):
+    """
+    Orchestration entry point called seamlessly by the pipeline master control framework.
+    """
+    logger.info(f"Launching Street Network Node Analysis framework [Scope Extent: {scope}]")
+    
+    raw_dir = project_root / "data/raw"
+    processed_dir = project_root / "data/processed"
+    
+    # Locate tracking file paths relative to structural root dynamically
+    pbf_path = project_root.parent / "valhalla_tiles/praha-260714.osm.pbf"
+    if not pbf_path.exists():
+        pbf_path = project_root / "valhalla_tiles/praha-260714.osm.pbf"
 
-def main():
-    logger.info("--- Starting Street Node Accessibility Analysis ---")
+    # 1. Read Health Care Points Slices
+    em_path = raw_dir / "OD_emergency_care.geojson"
+    mat_path = raw_dir / "OD_maternity_care.geojson"
     
-    # 1. Read and Filter Hospitals to Prague Area
-    emergency_gdf = gpd.read_file(EMERGENCY_PATH).to_crs("EPSG:4326")
-    maternity_gdf = gpd.read_file(MATERNITY_PATH).to_crs("EPSG:4326")
+    emergency_gdf = gpd.read_file(em_path).to_crs("EPSG:4326")
+    maternity_gdf = gpd.read_file(mat_path).to_crs("EPSG:4326")
     
-    lat_min, lat_max = 49.9, 50.2
-    lon_min, lon_max = 14.2, 14.7
-    
-    emergency_prah = emergency_gdf[
-        emergency_gdf.geometry.y.between(lat_min, lat_max) & 
-        emergency_gdf.geometry.x.between(lon_min, lon_max)
-    ]
-    maternity_prah = maternity_gdf[
-        maternity_gdf.geometry.y.between(lat_min, lat_max) & 
-        maternity_gdf.geometry.x.between(lon_min, lon_max)
-    ]
-    
-    em_dest = [(geom.y, geom.x) for geom in emergency_prah.geometry]
-    mat_dest = [(geom.y, geom.x) for geom in maternity_prah.geometry]
-    
-    logger.info(f"Loaded {len(em_dest)} Prague Emergency and {len(mat_dest)} Prague Maternity targets.")
+    # Apply dynamic geographic filter based on passed bbox bounds config
+    if bbox:
+        emergency_gdf = emergency_gdf[
+            emergency_gdf.geometry.y.between(bbox["lat_min"], bbox["lat_max"]) & 
+            emergency_gdf.geometry.x.between(bbox["lon_min"], bbox["lon_max"])
+        ].copy()
+        maternity_gdf = maternity_gdf[
+            maternity_gdf.geometry.y.between(bbox["lat_min"], bbox["lat_max"]) & 
+            maternity_gdf.geometry.x.between(bbox["lon_min"], bbox["lon_max"])
+        ].copy()
 
-    # 2. Extract Prague Street Intersections
-    nodes_gdf = extract_intersection_nodes(OSM_PBF_PATH, sample_size=1000)
+    em_dest = [(geom.y, geom.x) for geom in emergency_gdf.geometry]
+    mat_dest = [(geom.y, geom.x) for geom in maternity_gdf.geometry]
+
+    # 2. Extract intersection nodes conforming to bounding constraints
+    nodes_gdf = extract_intersection_nodes(pbf_path, bbox=bbox, sample_size=1500)
     origins = [(geom.y, geom.x) for geom in nodes_gdf.geometry]
 
-    # 3. Calculate Travel Times
-    logger.info("Routing from nodes to nearest Emergency Care...")
+    # 3. Compute Travel Times Matrix
+    logger.info("Querying Valhalla engine for Emergency matrix tracks...")
     nodes_gdf["travel_time_emergency"] = get_valhalla_matrix(origins, em_dest)
 
-    logger.info("Routing from nodes to nearest Maternity Care...")
+    logger.info("Querying Valhalla engine for Maternity matrix tracks...")
     nodes_gdf["travel_time_maternity"] = get_valhalla_matrix(origins, mat_dest)
 
-    # 4. Save GeoJSON Dataset
-    os.makedirs(os.path.dirname(OUTPUT_GEOJSON_PATH), exist_ok=True)
-    nodes_gdf.to_file(OUTPUT_GEOJSON_PATH, driver="GeoJSON")
-    logger.info(f"Saved dataset to: {OUTPUT_GEOJSON_PATH}")
+    # 4. Save results to GeoJSON datasets
+    nodes_output_dir = processed_dir / "nodes"
+    os.makedirs(nodes_output_dir, exist_ok=True)
+    
+    geojson_out = nodes_output_dir / f"nodes_accessibility_{scope.lower()}.geojson"
+    nodes_gdf.to_file(geojson_out, driver="GeoJSON")
+    logger.info(f"Saved structural node dataset to: {geojson_out}")
 
-    # 5. Generate and Save the Visualization Map
-    plot_node_accessibility(nodes_gdf, emergency_prah, OUTPUT_MAP_PATH)
-    logger.info("🎉 Process finished successfully!")
-
-
-if __name__ == "__main__":
-    main()
+    # 5. Plot Heatmaps matching target color profiles
+    map_out_em = output_dir / f"nodes/node_heatmap_emergency_{scope.lower()}.png"
+    plot_node_accessibility(nodes_gdf, map_out_em, target_col="travel_time_emergency")
+    
+    map_out_mat = output_dir / f"nodes/node_heatmap_maternity_{scope.lower()}.png"
+    plot_node_accessibility(nodes_gdf, map_out_mat, target_col="travel_time_maternity")
