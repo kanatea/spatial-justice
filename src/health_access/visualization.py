@@ -32,7 +32,7 @@ def create_cluster_map(
     fig, ax = plt.subplots(figsize=(12, 10))
 
     #plot the clusters
-    basemap_gdf.plot(ax=ax, color='#f2f2f2', edgecolor='#d9d9d9', linewidth=0.5)
+    basemap_gdf.plot(ax=ax, color='#f2f2f2', edgecolor='#282525', linewidth=0.6)
 
     clusters = sorted(gdf['cluster'].unique())
     colors = ["#e6194b", "#4363d8", "#f58231", "#3cb44b", "#ffe119", "#f032e6", "#911eb4", "#42d4f4", "#a9a9a9"][:len(clusters)]
@@ -40,7 +40,7 @@ def create_cluster_map(
     gdf['color'] = gdf['cluster'].map(color_map)
 
     # Plot the clusters on top of the grey basemap
-    gdf.plot(color=gdf['color'], legend=False, ax=ax, edgecolor='white', linewidth=0.5)
+    gdf.plot(color=gdf['color'], legend=False, ax=ax, edgecolor='#282525', linewidth=0.6)
 
     # OVERLAY POINTS
     point_handles = []
@@ -89,8 +89,15 @@ def visualize_cluster_metrics(file, viz_dir, basemap_gdf):
     Iterates through each cluster GeoJSON and creates a single consolidated
     image layout containing all 6 metric subplots (Count vs Density).
     """
-    gdf = gpd.read_file(file)
-    cluster_id = file.stem # e.g., "cluster_0"
+    # Fallback to engine="fiona" if pyogrio encounters C-level GEOS memory allocation errors
+    try:
+        gdf = gpd.read_file(file, engine="fiona")
+    except Exception:
+        gdf = gpd.read_file(file)
+
+    gdf["geometry"] = gdf["geometry"].make_valid() # Ensure geometries are valid for plotting
+
+    cluster_id = file.stem # e.g. "cluster_0"
     
     tasks = [
         ('COUNT_EMERGENCY', 'Emergency Count', 0, 0),
@@ -102,11 +109,11 @@ def visualize_cluster_metrics(file, viz_dir, basemap_gdf):
     ]
 
     # CONSTRAINED_LAYOUT: Automatically distributes maps evenly across the canvas
-    fig, axes = plt.subplots(3, 2, figsize=(16, 14), constrained_layout=True)
+    fig, axes = plt.subplots(3, 2, figsize=(16, 18), constrained_layout=True)
     
     fig.suptitle(
         f"Socioeconomic Profile Slices: {cluster_id.upper()}", 
-        fontsize=20, 
+        fontsize=30, 
         weight='bold'
     )
 
@@ -115,7 +122,7 @@ def visualize_cluster_metrics(file, viz_dir, basemap_gdf):
         ax = axes[row_idx, col_idx]
         
         # Render grey contextual basemap background
-        basemap_gdf.plot(ax=ax, color='#f2f2f2', edgecolor='#d9d9d9', linewidth=0.5)
+        basemap_gdf.plot(ax=ax, color="#e5e6e8", edgecolor="#282525", linewidth=0.6)
         
         # Overlay clustered geographic attribute boundaries
         gdf.plot(
@@ -205,7 +212,7 @@ def run_cluster_viz(clusters_dir, viz_dir, basemap_gdf):
 #======================================================================================
 # MORAN VIZ
 #=======================================================================================
-def plot_lisa_overlay(gdf_clustered, lisa_results, output_path):
+def plot_lisa(gdf_clustered, lisa_results, output_path):
     fig, ax = plt.subplots(figsize=(12, 12))
     
     if 'lisa_cluster' not in gdf_clustered.columns:
@@ -233,7 +240,7 @@ def plot_lisa_overlay(gdf_clustered, lisa_results, output_path):
             linewidth=1
         )
         
-        # 4. FIX: Create a manual proxy artist for the legend
+        # 4. Create a manual proxy artist for the legend
         # This creates a small red square for the legend without needing to link it to the plot
         red_patch = mpatches.Patch(facecolor='red', edgecolor='black', label='Care Center Desert (Coldspot)')
         plt.legend(handles=[red_patch])
