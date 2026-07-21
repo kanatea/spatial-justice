@@ -128,55 +128,45 @@ def standardize_data(input_path: Path, output_path: Path):
     return output_path # Returning the path is helpful for the next step in main.py
 
 
-def aggregate_poi(boundary_gdf: gpd.GeoDataFrame, point_mapping: Dict[str, str], points_dir: Path) -> gpd.GeoDataFrame:
+def aggregate_poi(boundary_gdf: gpd.GeoDataFrame, point_mapping: Dict[str, gpd.GeoDataFrame]) -> gpd.GeoDataFrame:
     """
-    Counts points from specific files and adds them as individual columns to the boundary GDF.
-    
     Args:
         boundary_gdf: The ORP boundaries GeoDataFrame.
-        point_mapping: Dict mapping filename to column name {'OD_emergency_care.geojson': 'COUNT_EMERGENCY'}
-        points_dir: Path to the directory containing the point files.
+        point_mapping: Dict mapping column name to GDF {'COUNT_EMERGENCY': emergency_gdf}
     """
     df_result = boundary_gdf.copy()
     total_sum = 0
 
-    for filename_poi, col_name in point_mapping.items():
-        file_path = points_dir / filename_poi
-        if not file_path.exists():
-            logger.warning(f"Point file {filename_poi} not found at {file_path}. Skipping.")
-            continue
-        
-        logger.info(f"Aggregating {filename_poi} into {col_name}...")
-        points_gdf = gpd.read_file(file_path)
+    for col_name, points_gdf in point_mapping.items():
+        logger.info(f"Aggregating points into {col_name}...")
         
         # Spatial join: find which polygon each point is in
-        # 'within' means the point is inside the polygon
         joined = gpd.sjoin(points_gdf, df_result, predicate='within')
         
-        # Count points per polygon index and map back to the main dataframe
+        # Count points per polygon index
         counts = joined.groupby('index_right').size()
-        # .reindex ensures that polygons with 0 points get a 0 instead of a NaN
         df_result[col_name] = counts.reindex(df_result.index, fill_value=0)
         
-        # Accumulate for the total column
-        total_sum += counts.fillna(0)
+        total_sum += counts.reindex(df_result.index, fill_value=0)
 
-    # Create the final total column
-    df_result['COUNT_TOTAL_CARE'] = total_sum.fillna(0).astype(int)
+    df_result['COUNT_TOTAL_CARE'] = total_sum.astype(int)
     
-    # Fill NaNs for individual columns with 0
-    df_result = df_result.fillna({'COUNT_EMERGENCY': 0, 'COUNT_MATERNITY': 0}) # Adjust names based on mapping
+    # Dynamic fillna for whatever columns were passed in the mapping
+    fill_values = {col: 0 for col in point_mapping.keys()}
+    df_result = df_result.fillna(fill_values)
     
     # Ensure all count columns are integers
-    count_cols = list(point_mapping.values()) + ['COUNT_TOTAL_CARE']
-    df_result[count_cols] = df_result[count_cols].fillna(0).astype(int)
+    count_cols = list(point_mapping.keys()) + ['COUNT_TOTAL_CARE']
+    df_result[count_cols] = df_result[count_cols].astype(int)
 
-    # A. Define Metric (Per Capita Density)
-    # Using the population column POCET_OBYV 
+    # Per Capita Density
+    # Per Capita Density
     population = df_result['POCET_OBYV'].replace(0, 1)
-    df_result['EMERGENCY_PER_CAPITA'] = (df_result['COUNT_EMERGENCY'] / population) * 10000
-    df_result['MATERNITY_PER_CAPITA'] = (df_result['COUNT_MATERNITY'] / population) * 10000
+    for col in point_mapping.keys():
+        # Remove 'COUNT_' prefix if it exists for the per-capita column name
+        clean_name = col.replace('COUNT_', '') 
+        df_result[f"{clean_name}_PER_CAPITA"] = (df_result[col] / population) * 10000
+    
     df_result['TOTAL_PER_CAPITA'] = (df_result['COUNT_TOTAL_CARE'] / population) * 10000
-
     
     return df_result
