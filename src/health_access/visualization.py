@@ -7,11 +7,9 @@ import pandas as pd
 import osmnx as ox
 
 
-#======================================================================================
+#==============================
 # CLUSTER MAP
-#=======================================================================================
-
-
+#==============================
 def create_cluster_map(
     gdf, 
     basemap_gdf,
@@ -81,9 +79,9 @@ def create_cluster_map(
     plt.close()
     return output_path
 
-#======================================================================================
+#==============================
 # CARE CENTER DENSITY WITHIN EACH CLUSTER (CONSOLIDATED GRID LAYOUT)
-#=======================================================================================
+#==============================
 def visualize_cluster_metrics(file, viz_dir, basemap_gdf):
     """
     Iterates through each cluster GeoJSON and creates a single consolidated
@@ -130,7 +128,9 @@ def visualize_cluster_metrics(file, viz_dir, basemap_gdf):
             ax=ax, 
             legend=True, 
             cmap='RdYlGn', 
-            scheme='quantiles', 
+            scheme='quantiles',
+            edgecolor='#282525',
+            linewidth=0.6, 
             k=4,
             legend_kwds={
                 'fmt': "{:.2f}",
@@ -152,48 +152,6 @@ def visualize_cluster_metrics(file, viz_dir, basemap_gdf):
     plt.close(fig)
 
 
-
-#def visualize_cluster_metrics(file, viz_dir, basemap_gdf):
-#    """
-#    Iterates through each cluster GeoJSON and creates 6 maps:
-#    Emergency (Count/Dens), Maternity (Count/Dens), Combined (Count/Dens)
-#    """
-#    gdf = gpd.read_file(file)
-#    cluster_id = file.stem # e.g., "cluster_0"
-    
-#    tasks = [
-#        ('COUNT_EMERGENCY', 'Emergency Count', 'emerg_count'),
-#        ('EMERGENCY_PER_CAPITA', 'Emergency Density (per 10k)', 'emerg_dens'),
-#        ('COUNT_MATERNITY', 'Maternity Count', 'mat_count'),
-#        ('MATERNITY_PER_CAPITA', 'Maternity Density (per 10k)', 'mat_dens'),
-#        ('COUNT_TOTAL_CARE', 'Combined Count', 'comb_count'),
-#        ('TOTAL_PER_CAPITA', 'Combined Density (per 10k)', 'comb_dens'),
-#    ]
-
-
-    # Plotting loop
-#    for col, title, suffix in tasks:
-#        fig, ax = plt.subplots(1, 1, figsize=(8, 8))
-#        # Use a sequential colormap (e.g.,  'RdYlGn' (Red-Yellow-Green) Red = Low Density/Poor Access)
-#        basemap_gdf.plot(ax=ax, color='#f2f2f2', edgecolor='#d9d9d9', linewidth=0.5)
-        
-#        gdf.plot(
-#            column=col, 
-#            ax=ax, 
-#            legend=True, 
-#            cmap='RdYlGn', 
-#            scheme='quantiles', 
-#            k=4,
-#            legend_kwds={'fmt': "{:.2f}"}
-#        )
-#        ax.set_title(f"{cluster_id} - {title}")
-#        ax.axis('off')
-        
-        # Save to /visualizations/cluster_viz/cluster_X_suffix.png
-#        save_path = viz_dir / f"{cluster_id}_{suffix}.png"
-#        plt.savefig(save_path, bbox_inches='tight', dpi=100)
-#        plt.close(fig)
-
 # Main Execution Logic
 def run_cluster_viz(clusters_dir, viz_dir, basemap_gdf):
     """
@@ -208,10 +166,9 @@ def run_cluster_viz(clusters_dir, viz_dir, basemap_gdf):
         print(f"Processing consolidated visualizations for {file.name}...")
         visualize_cluster_metrics(file, viz_dir, basemap_gdf)
 
-
-#======================================================================================
+#==============================
 # MORAN VIZ
-#=======================================================================================
+#==============================
 def plot_lisa(gdf_clustered, lisa_results, output_path):
     fig, ax = plt.subplots(figsize=(12, 12))
     
@@ -253,13 +210,9 @@ def plot_lisa(gdf_clustered, lisa_results, output_path):
     plt.savefig(output_path)
     plt.close()
 
-
-
-#======================================================================================
+#==============================
 # ACCESSIBILITY
-#=======================================================================================
-
-
+#==============================
 def plot_accessibility_map(
     gdf:          gpd.GeoDataFrame,
     column:       str,
@@ -312,7 +265,6 @@ def plot_accessibility_map(
     )
     ax.set_axis_off()
     return fig
-
 
 
 def plot_access_vs_socio(
@@ -390,7 +342,6 @@ def plot_access_vs_socio(
     return fig
 
 
-
 def plot_network_accessibility(
     gdf:           gpd.GeoDataFrame,
     graph,
@@ -463,9 +414,3 @@ def plot_network_accessibility(
     ax.set_title(title, fontsize=13, pad=12)
     ax.set_axis_off()
     return fig
-
-
-
-
-
-
