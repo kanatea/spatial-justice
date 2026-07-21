@@ -205,7 +205,7 @@ def run_cluster_viz(clusters_dir, viz_dir, basemap_gdf):
 #======================================================================================
 # MORAN VIZ
 #=======================================================================================
-def plot_lisa (gdf_clustered, lisa_results, output_path):
+def plot_lisa_overlay(gdf_clustered, lisa_results, output_path):
     fig, ax = plt.subplots(figsize=(12, 12))
     
     if 'lisa_cluster' not in gdf_clustered.columns:
