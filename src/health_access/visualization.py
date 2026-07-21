@@ -11,35 +11,37 @@ import osmnx as ox
 # CLUSTER MAP
 #=======================================================================================
 
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import geopandas as gpd
-
 def create_cluster_map(
     gdf, 
     basemap_gdf,
     project_root, 
     n_clusters, 
+    color_palette=None,
     with_points=False, 
     point_mapping=None, # Expects { "Emergency": em_gdf, "Maternity": mat_gdf }
     show_legend=False, 
-    title="Cluster Map"
+    title="Cluster Map",
+    ax=None
 ):
     # Dynamic filename
-    suffix = "with_points" if with_points else "no_points"
-    output_path = project_root / f"visualizations/map_clusters_{n_clusters}_{suffix}.png"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig, ax = plt.subplots(figsize=(12, 10))
-
+    # If ax is provided, we don't create a new figure or save a file
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(12, 10))
+        output_path = project_root / f"visualizations/map_clusters_{n_clusters}.png"
+    
     # 1. Plot the neutral grey basemap (Aesthetic from plot_hospital_distribution)
     basemap_gdf.plot(ax=ax, color="#f2f2f2", edgecolor="#bcbcbc", linewidth=0.5)
 
     # 2. Plot the clusters
     clusters = sorted(gdf['cluster'].unique())
-    # Professional color palette
-    colors = ["#e6194b", "#4363d8", "#f58231", "#3cb44b", "#ffe119", "#f032e6", "#911eb4", "#42d4f4", "#a9a9a9"][:len(clusters)]
-    color_map = {cluster: color for cluster, color in zip(clusters, colors)}
+    
+    # Use passed palette or fallback to the professional default
+    if color_palette is None:
+        color_palette = ["#e6194b", "#4363d8", "#f58231", "#3cb44b", "#ffe119", "#f032e6", "#911eb4", "#42d4f4", "#a9a9a9"]
+    
+    # Slice to match number of clusters
+    selected_colors = color_palette[:len(clusters)]
+    color_map = {cluster: color for cluster, color in zip(clusters, selected_colors)}
     gdf['color'] = gdf['cluster'].map(color_map)
 
     gdf.plot(color=gdf['color'], legend=False, ax=ax, edgecolor='white', linewidth=0.5)
@@ -80,14 +82,20 @@ def create_cluster_map(
 
     if show_legend:
         # Cluster patches
-        patches = [mpatches.Patch(color=colors[i], label=f"Cluster {cluster}") for i, cluster in enumerate(clusters)]
+        patches = [mpatches.Patch(color=selected_colors[i], label=f"Cluster {cluster}") for i, cluster in enumerate(clusters)]
         
         # Combine cluster patches and point handles
         all_handles = patches + point_handles
-        ax.legend(handles=all_handles, loc="lower right", frameon=True)
+        ax.legend(handles=all_handles, title_fontsize=14, prop={'size': 12}, loc="lower right", frameon=True)
     
-    plt.title(f"{title} ({suffix}) --- {n_clusters} clusters", fontsize=15)
-    ax.set_axis_off() 
+    ax.set_title(title, fontsize=20)
+    ax.set_axis_off()
+
+    if ax is not None: # If we were passed an axis, don't save here
+        return None 
+    
+    #plt.title(f"{title} ({suffix}) --- {n_clusters} clusters", fontsize=15)
+    #ax.set_axis_off() 
     plt.savefig(output_path, bbox_inches='tight', dpi=300)
     plt.close()
     return output_path
