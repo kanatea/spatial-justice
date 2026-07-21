@@ -7,10 +7,9 @@ import pandas as pd
 import osmnx as ox
 
 
-#======================================================================================
+#==============================
 # CLUSTER MAP
-#=======================================================================================
-
+#==============================
 def create_cluster_map(
     gdf, 
     basemap_gdf,
@@ -29,8 +28,8 @@ def create_cluster_map(
         fig, ax = plt.subplots(figsize=(12, 10))
         output_path = project_root / f"visualizations/map_clusters_{n_clusters}.png"
     
-    # 1. Plot the neutral grey basemap (Aesthetic from plot_hospital_distribution)
-    basemap_gdf.plot(ax=ax, color="#f2f2f2", edgecolor="#bcbcbc", linewidth=0.5)
+    #plot the clusters
+    basemap_gdf.plot(ax=ax, color='#f2f2f2', edgecolor='#282525', linewidth=0.6)
 
     # 2. Plot the clusters
     clusters = sorted(gdf['cluster'].unique())
@@ -44,7 +43,8 @@ def create_cluster_map(
     color_map = {cluster: color for cluster, color in zip(clusters, selected_colors)}
     gdf['color'] = gdf['cluster'].map(color_map)
 
-    gdf.plot(color=gdf['color'], legend=False, ax=ax, edgecolor='white', linewidth=0.5)
+    # Plot the clusters on top of the grey basemap
+    gdf.plot(color=gdf['color'], legend=False, ax=ax, edgecolor='#282525', linewidth=0.6)
 
     # 3. OVERLAY POINTS (Using the specific aesthetics requested)
     point_handles = []
@@ -100,54 +100,77 @@ def create_cluster_map(
     plt.close()
     return output_path
 
-
-
-
-
-
-#======================================================================================
-# CARE CENTER DENSITY WITHIN EACH CLUSTER
-#=======================================================================================
+#==============================
+# CARE CENTER DENSITY WITHIN EACH CLUSTER (CONSOLIDATED GRID LAYOUT)
+#==============================
 def visualize_cluster_metrics(file, viz_dir, basemap_gdf):
     """
-    Iterates through each cluster GeoJSON and creates 6 maps:
-    Emergency (Count/Dens), Maternity (Count/Dens), Combined (Count/Dens)
+    Iterates through each cluster GeoJSON and creates a single consolidated
+    image layout containing all 6 metric subplots (Count vs Density).
     """
-    gdf = gpd.read_file(file)
-    cluster_id = file.stem # e.g., "cluster_0"
+    # Fallback to engine="fiona" if pyogrio encounters C-level GEOS memory allocation errors
+    try:
+        gdf = gpd.read_file(file, engine="fiona")
+    except Exception:
+        gdf = gpd.read_file(file)
+
+    gdf["geometry"] = gdf["geometry"].make_valid() # Ensure geometries are valid for plotting
+
+    cluster_id = file.stem # e.g. "cluster_0"
     
     tasks = [
-        ('COUNT_EMERGENCY', 'Emergency Count', 'emerg_count'),
-        ('EMERGENCY_PER_CAPITA', 'Emergency Density (per 10k)', 'emerg_dens'),
-        ('COUNT_MATERNITY', 'Maternity Count', 'mat_count'),
-        ('MATERNITY_PER_CAPITA', 'Maternity Density (per 10k)', 'mat_dens'),
-        ('COUNT_TOTAL_CARE', 'Combined Count', 'comb_count'),
-        ('TOTAL_PER_CAPITA', 'Combined Density (per 10k)', 'comb_dens'),
+        ('COUNT_EMERGENCY', 'Emergency Count', 0, 0),
+        ('EMERGENCY_PER_CAPITA', 'Emergency Density (per 10k)', 0, 1),
+        ('COUNT_MATERNITY', 'Maternity Count', 1, 0),
+        ('MATERNITY_PER_CAPITA', 'Maternity Density (per 10k)', 1, 1),
+        ('COUNT_TOTAL_CARE', 'Combined Count', 2, 0),
+        ('TOTAL_PER_CAPITA', 'Combined Density (per 10k)', 2, 1),
     ]
 
+    # CONSTRAINED_LAYOUT: Automatically distributes maps evenly across the canvas
+    fig, axes = plt.subplots(3, 2, figsize=(16, 18), constrained_layout=True)
+    
+    fig.suptitle(
+        f"Socioeconomic Profile Slices: {cluster_id.upper()}", 
+        fontsize=30, 
+        weight='bold'
+    )
 
-    # Plotting loop
-    for col, title, suffix in tasks:
-        fig, ax = plt.subplots(1, 1, figsize=(8, 8))
-        # Use a sequential colormap (e.g.,  'RdYlGn' (Red-Yellow-Green) Red = Low Density/Poor Access)
-        basemap_gdf.plot(ax=ax, color='#f2f2f2', edgecolor='#d9d9d9', linewidth=0.5)
+    # Plotting loop across the grid axes
+    for col, title, row_idx, col_idx in tasks:
+        ax = axes[row_idx, col_idx]
         
+        # Render grey contextual basemap background
+        basemap_gdf.plot(ax=ax, color="#e5e6e8", edgecolor="#282525", linewidth=0.6)
+        
+        # Overlay clustered geographic attribute boundaries
         gdf.plot(
             column=col, 
             ax=ax, 
             legend=True, 
             cmap='RdYlGn', 
-            scheme='natural_breaks',  #setting to natural jenks
+            scheme='natural_breaks', #setting to natural jenks
+            edgecolor='#282525',
+            linewidth=0.6, 
             k=4,
-            legend_kwds={'fmt': "{:.2f}"}
+            legend_kwds={
+                'fmt': "{:.2f}",
+                # MOVE LEGEND OUTSIDE: Bounding box anchor pushes legend clear of map polygons
+                'bbox_to_anchor': (0.98, 0.05),
+                'loc': 'lower right',
+                'frameon': True,
+                'facecolor': 'white',
+                'edgecolor': 'none',
+                'fontsize': 8
+            }
         )
-        ax.set_title(f"{cluster_id} - {title}")
+        ax.set_title(title, fontsize=13, weight='semibold', pad=6)
         ax.axis('off')
-        
-        # Save to /visualizations/cluster_viz/cluster_X_suffix.png
-        save_path = viz_dir / f"{cluster_id}_{suffix}.png"
-        plt.savefig(save_path, bbox_inches='tight', dpi=100)
-        plt.close(fig)
+
+    # Save the consolidated layout file directly to your visualizations directory
+    save_path = viz_dir / f"{cluster_id}_metrics_summary.png"
+    plt.savefig(save_path, dpi=300)
+    plt.close(fig)
 
 
 # Main Execution Logic
@@ -161,13 +184,10 @@ def run_cluster_viz(clusters_dir, viz_dir, basemap_gdf):
     cluster_files = list(clusters_dir.glob("cluster_*.geojson"))
     
     for file in cluster_files:
-        print(f"Processing visualizations for {file.name}...")
+        print(f"Processing consolidated visualizations for {file.name}...")
         visualize_cluster_metrics(file, viz_dir, basemap_gdf)
 
-
-
-
-#======================================================================================
+#==============================
 # MORAN VIZ
 #=======================================================================================
 
@@ -224,9 +244,7 @@ def plot_lisa(gdf_lisa, output_path):
     plt.savefig(output_path, bbox_inches='tight', dpi=300)
     plt.close()
 
-
-
-#======================================================================================
+#==============================
 # ACCESSIBILITY
 #=======================================================================================
 def plot_hospital_distribution(orp_gdf, em_gdf, mat_gdf):
@@ -324,7 +342,6 @@ def plot_accessibility_map(
     return fig
 
 
-
 def plot_access_vs_socio(
     gdf:          gpd.GeoDataFrame,
     travel_col:   str,
@@ -401,7 +418,6 @@ def plot_access_vs_socio(
     return fig
 
 
-
 def plot_network_accessibility(
     gdf:           gpd.GeoDataFrame,
     graph,
@@ -474,9 +490,3 @@ def plot_network_accessibility(
     ax.set_title(title, fontsize=13, pad=12)
     ax.set_axis_off()
     return fig
-
-
-
-
-
-
