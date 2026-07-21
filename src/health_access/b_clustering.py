@@ -1,7 +1,10 @@
-import pandas as pd
-import geopandas as gpd
 import logging
 from typing import List
+import matplotlib.pyplot as plt
+import pandas as pd
+import geopandas as gpd
+import seaborn as sns
+from typing import List, Optional
 
 import numpy as np
 from sklearn.cluster import KMeans
@@ -126,8 +129,99 @@ def print_defining_features(df: gpd.DataFrame, features: List[str]):
     return z_scores
 
 
+
+# MULTIVARIATE BOX PLOTS
+
+def plot_cluster_characteristics(df: gpd.DataFrame, scaled_features: List[str], color_palette: Optional[List[str]] = None, ax=None, output_path: str = None):
+    """
+    Replicates ArcGIS Multivariate Clustering boxplot using pre-scaled data.
+        - Boxplots represent the global distribution of each feature.
+        - Lines connect the scaled means of each cluster across features.
+    Args:
+        df: The dataframe containing the scaled features and the cluster assignments.
+        scaled_features: List of column names (e.g., ["POP_DENS_scaled", ...])
+        output_path: Path to save the resulting image.
+
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(12, 6))
+    
+    # 1. Prepare data for the global distribution (Boxplots)
+    # We melt the scaled columns so seaborn can plot them as categories on the X-axis
+    df_melted = df[scaled_features].melt(var_name='Feature', value_name='ScaledValue')
+    
+    
+    # A. Draw the Global Distribution (Boxplots)
+    # These represent the distribution of the scaled data (Mean=0, Std=1)
+    sns.boxplot(
+        data=df_melted, 
+        x='Feature', 
+        y='ScaledValue', 
+        color='lightgrey', 
+        showfliers=False, 
+        width=0.6,
+        ax=ax
+    )
+    
+    # B. Calculate Cluster Means of the Scaled Data
+    # This is the "Cluster Centroid" in scaled space
+    cluster_means_scaled = df.groupby('cluster')[scaled_features].mean()
+    # Transpose so features are on the X axis for plotting
+    means_t = cluster_means_scaled.T 
+    
+    # Define a color palette for the clusters
+     # If a custom palette is provided, use it; otherwise, fallback to tab10
+    if color_palette is None:
+        palette = sns.color_palette("tab10", len(cluster_means_scaled))
+    else:
+        # Ensure the palette is long enough for the number of clusters
+        palette = color_palette[:len(cluster_means_scaled)]
+    
+    # C. Draw the Cluster Profiles (Line Plot)
+    for i in range(len(cluster_means_scaled)):
+        cluster_id = cluster_means_scaled.index[i]
+        ax.plot(
+            range(1, len(scaled_features) + 1), 
+            means_t[cluster_id], 
+            marker='o', 
+            linewidth=2.5, 
+            markersize=8, 
+            #label=f'Cluster {cluster_id}', 
+            color=palette[i]
+        )
+    
+    # Formatting
+    ax.axhline(0, color='black', linestyle='--', linewidth=1, alpha=0.5) 
+    ax.set_title("Cluster Characteristics (Standardized)", fontsize=16, pad=20)
+    ax.set_ylabel("Standardized Value (Z-Score)", fontsize=16)
+    ax.set_xlabel("Features", fontsize=16)
+    
+    # Clean up X-axis labels (remove '_scaled' for better readability)
+    labels = [feat.replace('_scaled', '') for feat in scaled_features]
+    ax.set_xticks(range(1, len(labels) + 1))
+    ax.tick_params(axis='x', labelsize=13)
+    ax.set_xticklabels(labels, rotation=45)
+    #ax.legend(title="Clusters", bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax.grid(axis='y', linestyle=':', alpha=0.6)
+
+    if ax is not None and output_path is None:
+        return None
+    
+    if output_path:
+        # Only call plt.savefig if we are handling the figure independently
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        print(f"Cluster characteristic plot saved to: {output_path}")
+    
+    if ax is None: # Only close if we created the figure inside this function
+        plt.close()
+
+
+
+
+
+
+
 #CODE TO SEPARATE CLUSTERS TO CONDUCT SUBSEQUENT ANALYSES
-#Moran's I and accessibility analyses will run per cluster...
 
 def export_clusters_separately(gdf, output_dir):
     """Saves each cluster into a separate GeoJSON file."""

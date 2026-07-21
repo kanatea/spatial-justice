@@ -6,7 +6,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 from health_access.a_preprocessing import transform_projections, standardize_data, aggregate_poi
-from health_access.b_clustering import find_optimal_k, apply_clustering, export_clusters_separately, print_cluster_characteristics, print_defining_features
+from health_access.b_clustering import find_optimal_k, apply_clustering, export_clusters_separately, print_cluster_characteristics, print_defining_features, plot_cluster_characteristics
 from health_access.c_analysis_moran import create_weights_matrices, build_morans_table, compute_lisa
 from health_access.d_analysis_accessibility import calculate_health_accessibility
 from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, plot_network_accessibility, run_cluster_viz, plot_lisa, plot_hospital_distribution
@@ -33,11 +33,7 @@ CLUSTERING_FEATURES = [
     "MIG_BAL_RATE_scaled"
 ]
 
-# Define the mapping for the point files
-#POINT_MAPPING = {
-#    "OD_emergency_care.geojson": "COUNT_EMERGENCY",
-#    "OD_maternity_care.geojson": "COUNT_MATERNITY"
-#}
+CLUSTER_COLORS = ["#e6194b", "#4363d8", "#f58231", "#3cb44b", "#ffe119", "#f032e6", "#911eb4", "#42d4f4", "#a9a9a9"]
 
 
 @app.command()
@@ -234,7 +230,6 @@ def main(
                 max_k = 10 #should i let this be customizable by the user?
             )
 
-
             gdf_clustered = apply_clustering(
                 gdf_vars,
                 features = CLUSTERING_FEATURES,
@@ -258,17 +253,38 @@ def main(
             clusters_dir.mkdir(parents=True, exist_ok=True)
             export_clusters_separately(gdf_clustered, clusters_dir)
 
-
+            #CLUSTER MAP
             logger.info("Generating cluster map...")
 
-            saved_map_path = create_cluster_map(
+            fig = plt.figure(figsize=(14, 17)) 
+            gs = fig.add_gridspec(2, 1, height_ratios=[3, 1.2]) 
+            ax_map = fig.add_subplot(gs[0])
+            ax_chart = fig.add_subplot(gs[1])
+
+            create_cluster_map(
                 gdf = gdf_clustered,
                 basemap_gdf = gdf_vars,
                 project_root = project_root, 
                 n_clusters = n_clusters,
+                color_palette = CLUSTER_COLORS,
                 show_legend = show_legend,
-                title = "ORP Clusters based on 9 Selected Variables"
+                title = "ORP Clusters based on 6 Selected Variables",
+                ax = ax_map 
             )
+
+            #BOXPLOT CHART FOR CLUSTERS
+            plot_cluster_characteristics(
+                df = gdf_vars, 
+                scaled_features = CLUSTERING_FEATURES, 
+                color_palette = CLUSTER_COLORS,
+                ax = ax_chart
+            )
+
+            plt.tight_layout()
+            plt.savefig(viz_dir / f"map_clusters_{n_clusters}.png", bbox_inches='tight', dpi=300)
+            plt.close()
+
+            logger.info(f"Visualization saved to: {viz_dir}")
 
             # Image B: Clusters + Points
             logger.info("Generating cluster map with point overlays...")
@@ -280,22 +296,41 @@ def main(
                 maternity_gdf = maternity_gdf[maternity_gdf["level"] <= 2] #115
             else:
                 logger.info("Skipping hospital filtering: Using all available points (including ambulance stations).")
+            
+            fig2 = plt.figure(figsize=(14, 17)) 
+            gs2 = fig2.add_gridspec(2, 1, height_ratios=[3, 1]) 
+            ax_map2 = fig2.add_subplot(gs2[0])
+            ax_chart2 = fig2.add_subplot(gs2[1])
 
             create_cluster_map(
                 gdf = gdf_clustered,
                 basemap_gdf = gdf_vars,
                 project_root = project_root,
                 n_clusters = n_clusters,
+                color_palette = CLUSTER_COLORS,
                 with_points = True,
                 point_mapping = {
                     "Emergency": emergency_gdf, 
                     "Maternity": maternity_gdf
                 },
                 show_legend = True,
-                title = "ORP Clusters based on 9 Selected Variables with Care Locations"
+                title = "ORP Clusters based on 6 Selected Variables with Care Locations",
+                ax = ax_map2 
             )
-            logger.info(f"Visualization saved to: {saved_map_path}")
-        
+            logger.info(f"Visualization saved to: {viz_dir}")
+
+            #BOXPLOT CHART FOR CLUSTERS
+            plot_cluster_characteristics(
+                df = gdf_vars, 
+                scaled_features = CLUSTERING_FEATURES, 
+                color_palette = CLUSTER_COLORS,
+                ax = ax_chart2
+            )
+
+            plt.tight_layout()
+            plt.savefig(viz_dir / f"map_clusters_{n_clusters}_points.png", bbox_inches='tight', dpi=300)
+            plt.close()
+
         else:
             logger.error("Variables file missing. Skipping clustering.")
             return  # Exit the function if the variables file is missing
