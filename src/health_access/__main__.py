@@ -10,6 +10,7 @@ from health_access.b_clustering import find_optimal_k, apply_clustering, export_
 from health_access.c_analysis_moran import create_weights_matrices, build_morans_table, compute_lisa
 from health_access.d_analysis_accessibility import calculate_health_accessibility
 from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, plot_network_accessibility, run_cluster_viz, plot_lisa, plot_hospital_distribution
+from health_access.d_nodes_analysis import run_nodes_analysis, extract_intersection_nodes, get_valhalla_matrix, plot_node_accessibility
 
 logging.basicConfig(
     level=logging.INFO,
@@ -84,7 +85,7 @@ def main(
         help="Skip clustering step."
         ),
     clustering_viz: bool = typer.Option(
-        True, 
+        False, 
         "--clustering-viz", 
         "-cv", 
         help="Enable clustering visualization step."
@@ -113,6 +114,17 @@ def main(
         "-nl", 
         help="Add a legend to the cluster map." 
         ),
+    analysis_scope: str = typer.Option(
+        "COUNTRY",
+        "--scope",
+        help="Analysis scope option: 'PRAGUE' or 'COUNTRY'."
+        ),
+    skip_nodes: bool = typer.Option(
+        False, 
+        "--skip-nodes", 
+        "-sn", 
+        help="Skip street network node density/accessibility analysis."
+        ),
     hospital_filter: bool = typer.Option(
         True, 
         "--hospital_filter", 
@@ -139,6 +151,24 @@ def main(
     # Load hospital points 
     em_path  = transformed_dir / "OD_emergency_care.geojson"
     mat_path = transformed_dir / "OD_maternity_care.geojson"
+
+    # Define the bounding box logic for the network analysis node module
+    bbox = None
+    if analysis_scope == "PRAGUE":
+        logger.info("Setting global extent properties to Prague limits.")
+        bbox = {
+            "lat_min": 49.85, "lat_max": 50.25,
+            "lon_min": 14.15, "lon_max": 14.80
+        }
+
+    # Define the bounding box logic for the network analysis node module
+    bbox = None
+    if analysis_scope == "PRAGUE":
+        logger.info("Setting global extent properties to Prague limits.")
+        bbox = {
+            "lat_min": 49.85, "lat_max": 50.25,
+            "lon_min": 14.15, "lon_max": 14.80
+        }
 
    # 1. PREPROCESSING: Transform (reproject) all raw files to EPSG:5514
     if not skip_project:
@@ -272,21 +302,31 @@ def main(
 
 
     #  CLUSTER CONT  - VISUALIZATION
-    # Image A: Clusters only
+    # Consolidates all 6 metrics into unified grid layouts per cluster
     if clustering_viz:
-        logger.info("Generating individual cluster maps...")
-        gdf_clustered = gpd.read_file(clustered_output)
-        gdf_vars = gpd.read_file(census_output)
-
-        logger.info("Generating detailed density visualizations for each cluster...")
-
-        run_cluster_viz(
+        logger.info("Generating individual cluster profiles...")
+        
+        if not clusters_dir.exists() or not list(clusters_dir.glob("cluster_*.geojson")):
+            logger.warning(f"No isolated cluster GeoJSON files found at {clusters_dir}. Re-running export split...")
+            if clustered_output.exists():
+                gdf_clustered = gpd.read_file(clustered_output)
+                clusters_dir.mkdir(parents=True, exist_ok=True)
+                export_clusters_separately(gdf_clustered, clusters_dir)
+            else:
+                logger.error("Clustered data output not found. Cannot generate metric profiles.")
+        
+        if clusters_dir.exists():
+            gdf_vars = gpd.read_file(census_output)
+            logger.info("Generating detailed 3x2 grid metric summaries for each demographic slice...")
+            
+            # This triggers your new consolidated layout logic internally
+            run_cluster_viz(
                 clusters_dir = clusters_dir, 
                 viz_dir = viz_cluster_output,
                 basemap_gdf = gdf_vars
-        )
+            )
     else:
-        logger.info("Skipping clustering visualization.")
+        logger.info("Skipping clustering visualization (--clustering-viz turned off).")
 
 
     # 3. ESDA
@@ -338,7 +378,7 @@ def main(
         except Exception as e:
             logger.error(f"Spatial analysis failed: {e}")
                 #else:
-                #        logger.error("Clustered file missing. Skipping spatial analysis.")
+                #logger.error("Clustered file missing. Skipping spatial analysis.")
     else:
         logger.info("Skipping ESDA...")
 
@@ -368,6 +408,26 @@ def main(
                 else:
                     logger.info("Skipping hospital filtering: Using all available points (including ambulance stations).")
 
+                # Dynamic geographic area filter switch
+                if analysis_scope == "PRAGUE":
+                    logger.info("Applying local spatial filter: Prague + Surroundings")
+                    lat_min, lat_max = 49.85, 50.25
+                    lon_min, lon_max = 14.15, 14.80
+                    
+                    emergency_gdf = emergency_gdf[
+                        emergency_gdf.geometry.y.between(lat_min, lat_max) & 
+                        emergency_gdf.geometry.x.between(lon_min, lon_max)
+                    ].copy()
+                    
+                    maternity_gdf = maternity_gdf[
+                        maternity_gdf.geometry.y.between(lat_min, lat_max) & 
+                        maternity_gdf.geometry.x.between(lon_min, lon_max)
+                    ].copy()
+                else:
+                    logger.info("Scope set to COUNTRY. Retaining nationwide care facilities.")
+
+                logger.info(f"Loaded {len(emergency_gdf)} Emergency and {len(maternity_gdf)} Maternity target locations.")
+                
                 # Calculate travel times - this might take a few minutes
                 gdf_access = calculate_health_accessibility(
                     gdf_clustered, emergency_gdf, maternity_gdf
@@ -461,6 +521,90 @@ def main(
     else:
         logger.info("Skipping accessibility map (--skip-accessibility-maps set).")
 
+
+    # 5. STREET NETWORK NODES ANALYSIs
+    if not skip_nodes:
+        logger.info("Starting street network node analysis...")
+        
+        # 1. Dynamically locate the local Prague PBF road network file
+        pbf_path = project_root.parent / "valhalla_tiles/praha-260714.osm.pbf"
+        if not pbf_path.exists():
+            pbf_path = project_root / "valhalla_tiles/praha-260714.osm.pbf"
+            
+        # 2. Load and isolate raw hospital files matching our target layout
+        em_path = raw_dir / "OD_emergency_care.geojson"
+        emergency_gdf = gpd.read_file(em_path).to_crs("EPSG:4326")
+        
+        # 3. Filter hospitals down to the active Prague window if scope matches
+        if analysis_scope == "PRAGUE" and bbox:
+            emergency_prah = emergency_gdf[
+                emergency_gdf.geometry.y.between(bbox["lat_min"], bbox["lat_max"]) & 
+                emergency_gdf.geometry.x.between(bbox["lon_min"], bbox["lon_max"])
+            ].copy()
+        else:
+            emergency_prah = emergency_gdf.copy()
+            
+        # 4. Extract real intersection nodes from the PBF network map
+        nodes_gdf = extract_intersection_nodes(pbf_path, bbox=bbox, sample_size=1000)
+        
+        # 5. Route travel matrices using Valhalla engine chunks
+        origins = [(geom.y, geom.x) for geom in nodes_gdf.geometry]
+        em_dest = [(geom.y, geom.x) for geom in emergency_prah.geometry]
+        
+        logger.info("Routing from network nodes to nearest Emergency Care tracking...")
+        nodes_gdf["travel_time_emergency"] = get_valhalla_matrix(origins, em_dest)
+        
+        # 6. Run the original localized map rendering function 
+        plot_node_accessibility(
+            nodes_gdf=nodes_gdf,
+            output_path=project_root / "visualizations/nodes/prague_nodes_accessibility.png",
+            target_col="travel_time_emergency"
+        )
+        
+    else:
+        logger.info("Skipping street network node analysis (--skip-nodes / -sn set).")
+
+    # 5. STREET NETWORK NODES ANALYSIs
+    if not skip_nodes:
+        logger.info("Starting street network node analysis...")
+        
+        # 1. Dynamically locate the local Prague PBF road network file
+        pbf_path = project_root.parent / "valhalla_tiles/praha-260714.osm.pbf"
+        if not pbf_path.exists():
+            pbf_path = project_root / "valhalla_tiles/praha-260714.osm.pbf"
+            
+        # 2. Load and isolate raw hospital files matching our target layout
+        em_path = raw_dir / "OD_emergency_care.geojson"
+        emergency_gdf = gpd.read_file(em_path).to_crs("EPSG:4326")
+        
+        # 3. Filter hospitals down to the active Prague window if scope matches
+        if analysis_scope == "PRAGUE" and bbox:
+            emergency_prah = emergency_gdf[
+                emergency_gdf.geometry.y.between(bbox["lat_min"], bbox["lat_max"]) & 
+                emergency_gdf.geometry.x.between(bbox["lon_min"], bbox["lon_max"])
+            ].copy()
+        else:
+            emergency_prah = emergency_gdf.copy()
+            
+        # 4. Extract real intersection nodes from the PBF network map
+        nodes_gdf = extract_intersection_nodes(pbf_path, bbox=bbox, sample_size=1000)
+        
+        # 5. Route travel matrices using Valhalla engine chunks
+        origins = [(geom.y, geom.x) for geom in nodes_gdf.geometry]
+        em_dest = [(geom.y, geom.x) for geom in emergency_prah.geometry]
+        
+        logger.info("Routing from network nodes to nearest Emergency Care tracking...")
+        nodes_gdf["travel_time_emergency"] = get_valhalla_matrix(origins, em_dest)
+        
+        # 6. Run the original localized map rendering function 
+        plot_node_accessibility(
+            nodes_gdf=nodes_gdf,
+            output_path=project_root / "visualizations/nodes/prague_nodes_accessibility.png",
+            target_col="travel_time_emergency"
+        )
+        
+    else:
+        logger.info("Skipping street network node analysis (--skip-nodes / -sn set).")
 
     logger.info("Complete! :)")
 
