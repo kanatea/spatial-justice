@@ -5,6 +5,7 @@ from matplotlib.colors import ListedColormap
 from pathlib import Path
 import pandas as pd
 import osmnx as ox
+import mapclassify
 
 
 #==============================
@@ -287,7 +288,8 @@ def plot_accessibility_map(
     column:       str,
     district_col: str,
     title:        str,
-    poi_type:     str,
+    #poi_type:     str,
+    output_path:  str,
     cmap:         str,
     show_legend:  bool = True,
     label_districts: bool = True, # Added toggle for labels
@@ -338,9 +340,438 @@ def plot_accessibility_map(
 
     ax.set_title(title, fontsize=15, pad=20)
     ax.set_axis_off()
+
+    fig.savefig(output_path, bbox_inches="tight", dpi=300)
     
     return fig
 
+
+
+#==============================
+# ACCESSIBILITY - ONE FIGURE
+#=======================================================================================
+
+def visualize_cluster_accessibility_8panel(
+    cluster_gdf,
+    viz_dir,
+    basemap_gdf,
+    value_col,
+    output_path,
+    cluster_col="cluster",
+    cmap="RdYlGn_r",
+    k=4,
+    title_label=None
+):
+    """
+    Create an 8-panel figure:
+      - 4 rows = clusters
+      - left column = global accessibility scale
+      - right column = within-cluster accessibility scale
+    """
+    viz_dir = Path(viz_dir)
+    viz_dir.mkdir(parents=True, exist_ok=True)
+
+    gdf = cluster_gdf.copy()
+    gdf = gdf[gdf.geometry.notna()].copy()
+    gdf = gdf[gdf[value_col].notna()].copy()
+    gdf = gdf[gdf.is_valid].copy()
+
+    if gdf.empty:
+        raise ValueError(f"No valid rows found for column '{value_col}'")
+
+    if basemap_gdf.crs != gdf.crs:
+        basemap_gdf = basemap_gdf.to_crs(gdf.crs)
+
+    cluster_ids = sorted(gdf[cluster_col].dropna().unique())
+
+    global_classifier = mapclassify.NaturalBreaks(gdf[value_col], k=k)
+    global_bins = global_classifier.bins
+
+    fig, axes = plt.subplots(
+        nrows=len(cluster_ids),
+        ncols=2,
+        figsize=(16, 6 * len(cluster_ids)),
+        constrained_layout=True
+    )
+
+    if len(cluster_ids) == 1:
+        axes = [axes]
+
+    pretty_name = title_label if title_label else value_col.replace("_", " ").title()
+
+    fig.suptitle(
+        f"Cluster Accessibility Comparison: {pretty_name}",
+        fontsize=22,
+        weight="bold"
+    )
+
+    for row_idx, cluster_id in enumerate(cluster_ids):
+        cluster_subset = gdf[gdf[cluster_col] == cluster_id].copy()
+
+        # Left: global scale
+        ax_left = axes[row_idx][0]
+        basemap_gdf.plot(
+            ax=ax_left,
+            color="#e5e6e8",
+            edgecolor="#282525",
+            linewidth=0.5
+        )
+
+        cluster_subset.plot(
+            column=value_col,
+            ax=ax_left,
+            cmap=cmap,
+            edgecolor="#282525",
+            linewidth=0.7,
+            legend=True,
+            scheme="user_defined",
+            classification_kwds={"bins": global_bins},
+            legend_kwds={
+                "loc": "lower right",
+                "frameon": True,
+                "facecolor": "white",
+                "edgecolor": "none",
+                "fontsize": 8,
+                "title": "Minutes"
+            }
+        )
+
+        ax_left.set_title(
+            f"Cluster {cluster_id}: Global Scale",
+            fontsize=12,
+            weight="semibold"
+        )
+        ax_left.axis("off")
+
+        # Right: within-cluster scale
+        ax_right = axes[row_idx][1]
+        basemap_gdf.plot(
+            ax=ax_right,
+            color="#e5e6e8",
+            edgecolor="#282525",
+            linewidth=0.5
+        )
+
+        unique_vals = cluster_subset[value_col].nunique()
+        local_k = min(k, unique_vals) if unique_vals > 1 else 1
+
+        if local_k > 1:
+            cluster_subset.plot(
+                column=value_col,
+                ax=ax_right,
+                cmap=cmap,
+                edgecolor="#282525",
+                linewidth=0.7,
+                legend=True,
+                scheme="natural_breaks",
+                k=local_k,
+                legend_kwds={
+                    "loc": "lower right",
+                    "frameon": True,
+                    "facecolor": "white",
+                    "edgecolor": "none",
+                    "fontsize": 8,
+                    "title": "Minutes"
+                }
+            )
+        else:
+            cluster_subset.plot(
+                ax=ax_right,
+                color="#a1d99b",
+                edgecolor="#282525",
+                linewidth=0.7
+            )
+
+        ax_right.set_title(
+            f"Cluster {cluster_id}: Within-Cluster Scale",
+            fontsize=12,
+            weight="semibold"
+        )
+        ax_right.axis("off")
+
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved: {output_path}")
+
+
+
+
+
+#==============================
+# ACCESSIBILITY - INDIVIDUAL MAPS 
+#=======================================================================================
+
+def get_n_highlight(n_orps):
+    """
+    Decide how many best/worst ORPs to highlight based on cluster size.
+    """
+    if n_orps <= 5:
+        return 1
+    elif n_orps <= 20:
+        return 3
+    else:
+        return 5
+
+
+def compute_summary_stats(series):
+    """
+    Return rounded summary statistics for a numeric series.
+    """
+    return {
+        "Mean": round(series.mean(), 1),
+        "Min": round(series.min(), 1),
+        "Max": round(series.max(), 1),
+        "Std Dev": round(series.std(), 1) if len(series) > 1 else 0.0
+    }
+
+
+def select_best_worst_by_rank(gdf, rank_col, n_select):
+    """
+    Select top best (lowest rank) and worst (highest rank).
+    """
+    gdf_valid = gdf[gdf[rank_col].notna()].copy()
+
+    best = gdf_valid.nsmallest(n_select, rank_col).copy()
+    worst = gdf_valid.nlargest(n_select, rank_col).copy()
+
+    best["highlight_group"] = "Best"
+    worst["highlight_group"] = "Worst"
+
+    selected = pd.concat([best, worst], axis=0)
+    selected = selected.loc[~selected.index.duplicated(keep="first")].copy()
+
+    return selected
+
+
+def add_labels(ax, label_gdf, label_col):
+    """
+    Label selected ORPs using representative points.
+    """
+    for _, row in label_gdf.iterrows():
+        if row.geometry is None or row.geometry.is_empty:
+            continue
+
+        point = row.geometry.representative_point()
+        ax.annotate(
+            text=str(row[label_col]),
+            xy=(point.x, point.y),
+            xytext=(3, 3),
+            textcoords="offset points",
+            fontsize=8,
+            fontweight="bold",
+            color="black",
+            bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8)
+        )
+
+
+def add_stats_table(ax, stats_dict):
+    """
+    Add a horizontal summary-stat table below a map.
+    Labels appear across the top row.
+    """
+    col_labels = list(stats_dict.keys())
+    cell_text = [[v for v in stats_dict.values()]]
+
+    table = ax.table(
+        cellText=cell_text,
+        colLabels=col_labels,
+        loc="bottom",
+        cellLoc="center",
+        bbox=[0.05, -0.32, 0.90, 0.16]  # x, y, width, height
+    )
+
+    table.auto_set_font_size(False)
+    table.set_fontsize(8)
+
+
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+def plot_single_cluster_access_pair(
+    cluster_subset,
+    basemap_gdf,
+    cluster_id,
+    maternity_col,
+    emergency_col,
+    maternity_rank_col,
+    emergency_rank_col,
+    label_col,
+    output_path,
+    cmap="RdYlGn_r",
+    k=4
+):
+    """
+    Create one figure for a single cluster with two maps:
+    - left: maternity
+    - right: emergency
+
+    Uses precomputed ranking columns to highlight best/worst ORPs.
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    cluster_subset = cluster_subset.copy()
+    cluster_subset = cluster_subset[
+        cluster_subset.geometry.notna() &
+        cluster_subset.is_valid
+    ].copy()
+
+    if cluster_subset.empty:
+        raise ValueError(f"Cluster {cluster_id} has no valid geometries")
+
+    if basemap_gdf.crs != cluster_subset.crs:
+        basemap_gdf = basemap_gdf.to_crs(cluster_subset.crs)
+
+    n_highlight = get_n_highlight(len(cluster_subset))
+
+    fig, axes = plt.subplots(1, 2, figsize=(16, 10))
+    fig.suptitle(
+        f"Cluster {cluster_id}: Accessibility to Nearest Care",
+        fontsize=18,
+        weight="bold"
+    )
+
+    map_specs = [
+        (axes[0], maternity_col, maternity_rank_col, "Nearest Maternity Drive Time"),
+        (axes[1], emergency_col, emergency_rank_col, "Nearest Emergency Drive Time"),
+    ]
+
+    for ax, value_col, rank_col, title in map_specs:
+        plot_gdf = cluster_subset[cluster_subset[value_col].notna()].copy()
+
+        if plot_gdf.empty:
+            ax.set_title(f"{title}\nNo data")
+            ax.axis("off")
+            continue
+
+        basemap_gdf.plot(
+            ax=ax,
+            color="#e5e6e8",
+            edgecolor="#282525",
+            linewidth=0.5
+        )
+
+        unique_vals = plot_gdf[value_col].nunique()
+        local_k = min(k, unique_vals) if unique_vals > 1 else 1
+
+        if local_k > 1:
+            plot_gdf.plot(
+                column=value_col,
+                ax=ax,
+                cmap=cmap,
+                edgecolor="#444444",
+                linewidth=0.6,
+                legend=True,
+                scheme="natural_breaks",
+                k=local_k,
+                legend_kwds={
+                    "loc": "lower right",
+                    "frameon": True,
+                    "facecolor": "white",
+                    "edgecolor": "none",
+                    "fontsize": 8,
+                    "title": "Minutes"
+                }
+            )
+        else:
+            plot_gdf.plot(
+                ax=ax,
+                color="#a1d99b",
+                edgecolor="#444444",
+                linewidth=0.6
+            )
+
+        highlighted = select_best_worst_by_rank(plot_gdf, rank_col, n_highlight)
+
+        best_gdf = highlighted[highlighted["highlight_group"] == "Best"]
+        worst_gdf = highlighted[highlighted["highlight_group"] == "Worst"]
+
+        if not best_gdf.empty:
+            best_gdf.boundary.plot(
+                ax=ax,
+                color="#002fff",
+                linewidth=2.2,
+                linestyle="solid"
+            )
+
+        if not worst_gdf.empty:
+            worst_gdf.boundary.plot(
+                ax=ax,
+                color="#0d0102",
+                linewidth=2.2,
+                linestyle="solid"
+            )
+
+        add_labels(ax, highlighted, label_col)
+
+        stats_dict = compute_summary_stats(plot_gdf[value_col])
+
+        ax.set_title(title, fontsize=12, weight="semibold")
+        ax.axis("off")
+
+        add_stats_table(ax, stats_dict)
+
+    plt.tight_layout()
+    fig.subplots_adjust(top=0.88, bottom=0.22)
+
+    fig.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved: {output_path}")
+        
+
+def visualize_all_clusters_access_pairs(
+    cluster_gdf,
+    basemap_gdf,
+    output_dir,
+    cluster_col,
+    label_col,
+    maternity_col,
+    emergency_col,
+    maternity_rank_col="ranking_maternity",
+    emergency_rank_col="ranking_emergency",
+    cmap="RdYlGn_r",
+    k=4
+):
+    """
+    Create one 2-map figure per cluster using precomputed ranking columns.
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    gdf = cluster_gdf.copy()
+    gdf = gdf[gdf.geometry.notna()].copy()
+    gdf = gdf[gdf.is_valid].copy()
+
+    cluster_ids = sorted(gdf[cluster_col].dropna().unique())
+
+    for cluster_id in cluster_ids:
+        cluster_subset = gdf[gdf[cluster_col] == cluster_id].copy()
+
+        output_path = output_dir / f"cluster_{cluster_id}_access_pair.png"
+
+        plot_single_cluster_access_pair(
+            cluster_subset=cluster_subset,
+            basemap_gdf=basemap_gdf,
+            cluster_id=cluster_id,
+            maternity_col=maternity_col,
+            emergency_col=emergency_col,
+            maternity_rank_col=maternity_rank_col,
+            emergency_rank_col=emergency_rank_col,
+            label_col=label_col,
+            output_path=output_path,
+            cmap=cmap,
+            k=k
+        )
+
+
+
+
+
+
+
+#==============================
+# ACCESSIBILITY - SCATTERPLOTS
+#=======================================================================================
 
 def plot_access_vs_socio(
     gdf:          gpd.GeoDataFrame,

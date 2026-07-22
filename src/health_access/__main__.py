@@ -6,10 +6,10 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 from health_access.a_preprocessing import transform_projections, standardize_data, aggregate_poi
-from health_access.b_clustering import find_optimal_k, apply_clustering, export_clusters_separately, print_cluster_characteristics, print_defining_features, plot_cluster_characteristics
+from health_access.b_clustering import find_optimal_k, apply_clustering, print_cluster_characteristics, print_defining_features, plot_cluster_characteristics
 from health_access.c_analysis_moran import create_weights_matrices, build_morans_table, compute_lisa
-from health_access.d_analysis_accessibility import calculate_health_accessibility
-from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, plot_network_accessibility, run_cluster_viz, plot_lisa, plot_hospital_distribution
+from health_access.d_analysis_accessibility import calculate_health_accessibility, add_access_rankings, export_clusters_separately
+from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, plot_network_accessibility, run_cluster_viz, plot_lisa, visualize_cluster_accessibility_8panel, visualize_all_clusters_access_pairs, plot_hospital_distribution
 from health_access.d_nodes_analysis import run_nodes_analysis, extract_intersection_nodes, get_valhalla_matrix, plot_node_accessibility
 
 logging.basicConfig(
@@ -80,12 +80,12 @@ def main(
         "-sc", 
         help="Skip clustering step."
         ),
-    clustering_viz: bool = typer.Option(
-        False, 
-        "--clustering-viz", 
-        "-cv", 
-        help="Enable clustering visualization step."
-        ),
+    #clustering_viz: bool = typer.Option(
+    #    False, 
+    #    "--clustering-viz", 
+    #    "-cv", 
+    #    help="Enable clustering visualization step."
+    #    ),
     skip_esda: bool = typer.Option(
         False, 
         "--skip-esda", 
@@ -116,7 +116,7 @@ def main(
         help="Analysis scope option: 'PRAGUE' or 'COUNTRY'."
         ),
     skip_nodes: bool = typer.Option(
-        False, 
+        True, 
         "--skip-nodes", 
         "-sn", 
         help="Skip street network node density/accessibility analysis."
@@ -227,7 +227,7 @@ def main(
                 gdf_vars,
                 features = CLUSTERING_FEATURES,
                 random_state = random_state,
-                max_k = 10 #should i let this be customizable by the user?
+                max_k = 10 
             )
 
             gdf_clustered = apply_clustering(
@@ -403,6 +403,9 @@ def main(
                 emergency_gdf = gpd.read_file(em_path)
                 maternity_gdf = gpd.read_file(mat_path)
 
+                emergency_gdf = emergency_gdf.to_crs("EPSG:4326")
+                maternity_gdf = maternity_gdf.to_crs("EPSG:4326")
+
                 if hospital_filter:
                     logger.info("Applying Level 2 Hospital Filter: Keeping only levels 1 and 2.")
                     emergency_gdf = emergency_gdf[emergency_gdf["level"] <= 2]
@@ -449,51 +452,108 @@ def main(
                 logger.info("Generating accessibility maps...")
 
                 gdf_access = gpd.read_file(access_output)
+                gdf_vars = gpd.read_file(census_output)
+
+                # Add global rankings to the full clustered file
+                gdf_access = add_access_rankings(
+                    gdf_access,
+                    maternity_col="time_maternity",
+                    emergency_col="time_emergency",
+                    rank_maternity_col="ranking_maternity",
+                    rank_emergency_col="ranking_emergency",
+                )
+
+                # Optionally overwrite the original clustered access file
+                gdf_access.to_file(access_output, driver="GeoJSON")
+
 
                 clusters_dir.mkdir(parents=True, exist_ok=True)
-                export_clusters_separately(gdf_access, clusters_dir)
+                export_clusters_separately(
+                    gdf_access, 
+                    clusters_dir, 
+                    cluster_col="cluster",
+                    maternity_col="time_maternity",
+                    emergency_col="time_emergency"
+                )
                 
                 fig_em = plot_accessibility_map(
                     gdf=gdf_access,
                     column="time_emergency",
                     district_col="NAZ_ORP",
                     title="Travel Time to Nearest Emergency Hospital (minutes)",
-                    poi_type="emergency hospital",
+                    output_path=viz_dir / "map_access_emergency.png",
+                    #poi_type="emergency hospital",
                     cmap="RdYlGn_r",
                     show_legend=show_legend,
                 )
                 # should we have this or a map with the points? or both?
                 # we can have both, but then we need to add a legend for the points.
-                fig_em.savefig(
-                    project_root / "visualizations/map_access_emergency.png",
-                    bbox_inches="tight", dpi=300
-                    )
-
                 # Map C: maternity map
                 fig_mat = plot_accessibility_map(
                     gdf=gdf_access,
                     column="time_maternity",
                     district_col="NAZ_ORP",
                     title="Travel Time to Nearest Maternity Hospital (minutes)",
-                    poi_type="maternity hospital",
+                    output_path=viz_dir / "map_access_maternity.png",
+                    #poi_type="maternity hospital",
                     cmap="RdYlGn_r",
                     show_legend=show_legend,
                 )
-                # should we have this or a map with the points? or both?
-                # we can have both, but then we need to add a legend for the points.
-                fig_mat.savefig(
-                    project_root / "visualizations/map_access_maternity.png",
-                    bbox_inches="tight", dpi=300
-                    )
 
+                logger.info("Generating cluster accessibility profile visualizations.")
+                #CLUSTER TRAVEL TIME VISUALIZATIONS  
+                visualize_cluster_accessibility_8panel(
+                    cluster_gdf=gdf_access,
+                    viz_dir=viz_dir,
+                    basemap_gdf=gdf_vars,
+                    value_col="time_maternity",
+                    output_path=viz_dir /"cluster_maternity_accessibility_8panel.png",
+                    title_label="Nearest Maternity Care Center Drive Time"
+                )
+    
+                visualize_cluster_accessibility_8panel(
+                    cluster_gdf=gdf_access,
+                    viz_dir=viz_dir,
+                    basemap_gdf=gdf_vars,
+                    value_col="time_emergency",
+                    output_path=viz_dir / "cluster_emergency_accessibility_8panel.png",
+                    title_label="Nearest Emergency Center Drive Time"
+                )
+                
+                #CARE CENTER COUNT VISUALIZATIONS
+                logger.info("Generating detailed 3x2 grid metric summaries for each demographic slice...")
+                
+                # This triggers your new consolidated layout logic internally
+                run_cluster_viz(
+                    clusters_dir = clusters_dir, 
+                    viz_dir = viz_cluster_output,
+                    basemap_gdf = gdf_vars
+                )
                 # MAP: access gap (maternity minus emergency)
                 # this needs to be added in the visualization.py first
                 #plot_accessibility_gap_map(
                 #    gdf=gdf_access,
                 #    output_path=project_root / "visualizations/map_access_gap.png",
                 #)
+
+                visualize_all_clusters_access_pairs(
+                    cluster_gdf=gdf_access,
+                    basemap_gdf=gdf_vars,
+                    output_dir=viz_dir / "final_cluster_maps",
+                    cluster_col="cluster",
+                    label_col="NAZ_ORP", 
+                    maternity_col="time_maternity",
+                    emergency_col="time_emergency",
+                    maternity_rank_col="ranking_maternity",
+                    emergency_rank_col="ranking_emergency",
+                    cmap="RdYlGn_r",
+                    k=4
+                )
+
                 gdf_access_gap = gdf_access.copy()
-                
+
+                logger.info("Generating scatter plots.")
+
                 # MAP: scatter - maternity travel time vs elderly population (for example)
                 fig_scatter = plot_access_vs_socio(
                     gdf=gdf_access_gap,
@@ -525,35 +585,6 @@ def main(
                 )
     else:
         logger.info("Skipping accessibility map (--skip-accessibility-maps set).")
-
-
-    #  CLUSTER CONT  - VISUALIZATION
-    # Consolidates all 6 metrics into unified grid layouts per cluster
-    if clustering_viz:
-        logger.info("Generating individual cluster profiles...")
-        
-        if not clusters_dir.exists() or not list(clusters_dir.glob("cluster_*.geojson")):
-            logger.warning(f"No isolated cluster GeoJSON files found at {clusters_dir}. Re-running export split...")
-            if access_output.exists():
-                gdf_access = gpd.read_file(access_output)
-                clusters_dir.mkdir(parents=True, exist_ok=True)
-                export_clusters_separately(gdf_access, clusters_dir)
-            else:
-                logger.error("Clustered data output not found. Cannot generate metric profiles.")
-        
-        if clusters_dir.exists():
-            gdf_vars = gpd.read_file(census_output)
-            logger.info("Generating detailed 3x2 grid metric summaries for each demographic slice...")
-            
-            # This triggers your new consolidated layout logic internally
-            run_cluster_viz(
-                clusters_dir = clusters_dir, 
-                viz_dir = viz_cluster_output,
-                basemap_gdf = gdf_vars
-            )
-    else:
-        logger.info("Skipping clustering visualization (--clustering-viz turned off).")
-
 
 
     # 5. STREET NETWORK NODES ANALYSIs
