@@ -217,16 +217,3 @@ def plot_cluster_characteristics(df: gpd.DataFrame, scaled_features: List[str], 
 
 
 
-
-
-
-
-#CODE TO SEPARATE CLUSTERS TO CONDUCT SUBSEQUENT ANALYSES
-
-def export_clusters_separately(gdf, output_dir):
-    """Saves each cluster into a separate GeoJSON file."""
-    for cluster_id in sorted(gdf["cluster"].unique()):
-        subset = gdf[gdf["cluster"] == cluster_id]
-        path = output_dir / f"cluster_{cluster_id}.geojson"
-        subset.to_file(path, driver="GeoJSON")
-        logger.info(f"Saved cluster {cluster_id} -> {path.name}")
