@@ -78,15 +78,8 @@ Please reference `pyproject.toml` for requirements and dependencies.
 
 `uv run health_access` to run the project. 
 
-OLD TABLE
-| Command Flags (TO BE UPDATED) | Long Flags | Default | Description |
-| ----------- | ----------- | ----------- | ----------- | ----------- |
-| -h, --help | To show options |
-| --skip-transform | Skip projection transformation (use already transformed data). |
-| --skip-clustering | Skip clustering step. |
-| --n-clusters INSERT NUMBER | Number of clusters; overrides the configuration default of 5 clusters |
 
-TESTING NEW TABLE
+## Table of Flag
 | Command Flags | Long Flags | Default | Description |
 | ----------- | ----------- | ----------- | ----------- |
 | -h | --help | | Show options and exit |
