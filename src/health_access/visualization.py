@@ -7,8 +7,9 @@ import pandas as pd
 import osmnx as ox
 import mapclassify
 
-
+#==============================
 # CLUSTER MAP
+#==============================
 
 def create_cluster_map(
     gdf, 
@@ -491,8 +492,6 @@ def visualize_cluster_accessibility_8panel(
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved: {output_path}")
-
-
 
 
 

@@ -80,12 +80,12 @@ def main(
         "-sc", 
         help="Skip clustering step."
         ),
-    #clustering_viz: bool = typer.Option(
-    #    False, 
-    #    "--clustering-viz", 
-    #    "-cv", 
-    #    help="Enable clustering visualization step."
-    #    ),
+    clustering_viz: bool = typer.Option(
+        False, 
+        "--clustering-viz", 
+        "-cv", 
+        help="Enable clustering visualization step."
+        ),
     skip_esda: bool = typer.Option(
         False, 
         "--skip-esda", 
