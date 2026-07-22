@@ -249,10 +249,6 @@ def main(
             char_df = print_cluster_characteristics(gdf_vars, features = RAW_FEATURES)
             zscore_df = print_defining_features(gdf_vars, features = RAW_FEATURES)
 
-            clusters_dir = project_root / "data/processed/clusters"
-            clusters_dir.mkdir(parents=True, exist_ok=True)
-            export_clusters_separately(gdf_clustered, clusters_dir)
-
             #CLUSTER MAP
             logger.info("Generating cluster map...")
 
@@ -334,35 +330,6 @@ def main(
         else:
             logger.error("Variables file missing. Skipping clustering.")
             return  # Exit the function if the variables file is missing
-
-
-    #  CLUSTER CONT  - VISUALIZATION
-    # Consolidates all 6 metrics into unified grid layouts per cluster
-    if clustering_viz:
-        logger.info("Generating individual cluster profiles...")
-        
-        if not clusters_dir.exists() or not list(clusters_dir.glob("cluster_*.geojson")):
-            logger.warning(f"No isolated cluster GeoJSON files found at {clusters_dir}. Re-running export split...")
-            if clustered_output.exists():
-                gdf_clustered = gpd.read_file(clustered_output)
-                clusters_dir.mkdir(parents=True, exist_ok=True)
-                export_clusters_separately(gdf_clustered, clusters_dir)
-            else:
-                logger.error("Clustered data output not found. Cannot generate metric profiles.")
-        
-        if clusters_dir.exists():
-            gdf_vars = gpd.read_file(census_output)
-            logger.info("Generating detailed 3x2 grid metric summaries for each demographic slice...")
-            
-            # This triggers your new consolidated layout logic internally
-            run_cluster_viz(
-                clusters_dir = clusters_dir, 
-                viz_dir = viz_cluster_output,
-                basemap_gdf = gdf_vars
-            )
-    else:
-        logger.info("Skipping clustering visualization (--clustering-viz turned off).")
-
 
     # 3. ESDA
     # Analyzing patterns WITHIN each cluster
@@ -483,6 +450,9 @@ def main(
 
                 gdf_access = gpd.read_file(access_output)
 
+                clusters_dir.mkdir(parents=True, exist_ok=True)
+                export_clusters_separately(gdf_access, clusters_dir)
+                
                 fig_em = plot_accessibility_map(
                     gdf=gdf_access,
                     column="time_emergency",
@@ -555,6 +525,35 @@ def main(
                 )
     else:
         logger.info("Skipping accessibility map (--skip-accessibility-maps set).")
+
+
+    #  CLUSTER CONT  - VISUALIZATION
+    # Consolidates all 6 metrics into unified grid layouts per cluster
+    if clustering_viz:
+        logger.info("Generating individual cluster profiles...")
+        
+        if not clusters_dir.exists() or not list(clusters_dir.glob("cluster_*.geojson")):
+            logger.warning(f"No isolated cluster GeoJSON files found at {clusters_dir}. Re-running export split...")
+            if access_output.exists():
+                gdf_access = gpd.read_file(access_output)
+                clusters_dir.mkdir(parents=True, exist_ok=True)
+                export_clusters_separately(gdf_access, clusters_dir)
+            else:
+                logger.error("Clustered data output not found. Cannot generate metric profiles.")
+        
+        if clusters_dir.exists():
+            gdf_vars = gpd.read_file(census_output)
+            logger.info("Generating detailed 3x2 grid metric summaries for each demographic slice...")
+            
+            # This triggers your new consolidated layout logic internally
+            run_cluster_viz(
+                clusters_dir = clusters_dir, 
+                viz_dir = viz_cluster_output,
+                basemap_gdf = gdf_vars
+            )
+    else:
+        logger.info("Skipping clustering visualization (--clustering-viz turned off).")
+
 
 
     # 5. STREET NETWORK NODES ANALYSIs

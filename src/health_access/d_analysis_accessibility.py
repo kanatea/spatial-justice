@@ -7,7 +7,7 @@ from shapely.geometry import Point
 
 logger = logging.getLogger(__name__)
 
-VALHALLA_API_URL = "http://host.docker.internal:8002"
+VALHALLA_API_URL = "http://localhost:8002" #"http://host.docker.internal:8002"
 VALHALLA_MATRIX_LIMIT = 2400 
 
 def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
@@ -21,6 +21,7 @@ def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
     
     if total_sources == 0 or total_targets == 0:
         return []
+
 
     # Dynamic batching logic
     if total_targets > VALHALLA_MATRIX_LIMIT:
