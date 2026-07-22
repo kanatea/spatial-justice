@@ -1,4 +1,4 @@
-# requirements
+# Requirements
 
 ## 1. Preprocessing (a_preprocessing.py)
 - Transform the data to match all to one projection (EPSG:5514 / S-JTSK)
