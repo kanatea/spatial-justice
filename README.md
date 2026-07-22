@@ -32,7 +32,8 @@ Data Preprocessing --> Clustering --> Accessibility Analysis --> Visualizations 
 For a more detailed breakdown, please refer to `requirements.md`
 
 1. Data preprocessing includes filtering emergency care (build_emergency). It scans the specialties and care_form columns in the csv to classify every facility into one of three levels: hospitals with a formal emergency department (urgentní medicína), hospitals with ICU-level acute care but no dedicated ED, and ambulance dispatch stations (ZZS). Everything else is discarded.
-    - What kind of services are included in maternity care?
+Similarly, maternity care filtering scans specialties (gynekologie a porodnictví, porodní asistence) and care forms to isolate accredited inpatient delivery wards (porodnice) and obstetrical ICUs while filtering out non-acute, outpatient-only gynecological practices. This ensures travel times reflect access to facilities equipped for actual labor and childbirth rather than routine prenatal consultations.
+
 2. For clustering, a multivariate clustering method will be conducted based on relevant sociodemographic, such as population density, average age, natality rate, % women in fertile age, and more.
     - Expecting 3-5 clusters of administrative districts. 
     - We will use the [scikit-learn module](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html#sklearn.cluster.KMeans) to conduct k-means clustering. Github repository [here](https://github.com/scikit-learn/scikit-learn/tree/fe2edb3cdbd75ae4e662fda67dcb19277258792b).
@@ -79,7 +80,7 @@ Please reference `pyproject.toml` for requirements and dependencies.
 `uv run health_access` to run the project. 
 
 
-## Table of Flag
+## Table of Flags
 | Command Flags | Long Flags | Default | Description |
 | ----------- | ----------- | ----------- | ----------- |
 | -h | --help | | Show options and exit |
