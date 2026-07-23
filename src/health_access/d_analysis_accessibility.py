@@ -24,8 +24,9 @@ def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
     3) Processes travel time arrays
 
     """
-    endpoint = f"{VALHALLA_API_URL}/sources_to_targets"
-    
+    endpoint = f"{VALHALLA_API_URL}/sources_to_targets" # matrix API
+
+    # Prepare sources and targets for Valhalla API
     sources = [{"lat": float(lat), "lon": float(lon), "radius": 15000} for lat, lon in origins]
     targets = [{"lat": float(lat), "lon": float(lon), "radius": 15000} for lat, lon in destinations]
 
