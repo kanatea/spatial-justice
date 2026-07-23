@@ -44,6 +44,24 @@ For a more detailed breakdown, please refer to `requirements.md`
     - For calculating travel times, we used [Valhalla](https://github.com/valhalla/valhalla), which is a routing agent that calculates the distances between two points; in this case, we calculated the distance between the centroids of the districts to the nearest emergency and maternity care center. 
     - The times were then taken and evaluated within each cluster, visualizing the top 1, 3, or 5 (depending on cluster size) districts with the best and worst access (time taken to travel), as well as the count of maternity and emergency care centers in each district per cluster.
 
+4. Visualization
+    - Multiple different stages of the project workflow were visualized to provide better understanding of the process.
+    - !!! --> ADD TO THIS SECTION???
+        - cluster map with points?
+        - final cluster maps?
+        - more?
+
+## Limitations and Future Work
+This concept of this project has more potential for future extention. Due to the time contraints, all ideas of the authors could not be fully implemented. The current stage represents a starting point for more advanced analysis.
+
+Some examples of the possibilities for improvement are:
+- Automating n_clusters
+- Adding more CLI flags - and specifically for cluster features
+- Finishing nodes analysis
+- Adding compound deprivation analysis
+- Improving scatterplot visualizations
+
+
 ## Project Structure
 
 ```

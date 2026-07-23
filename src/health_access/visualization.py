@@ -827,6 +827,7 @@ def plot_single_cluster_access_pair(
     print(f"Saved: {output_path}")
         
 
+
 def visualize_all_clusters_access_pairs(
     cluster_gdf,
     basemap_gdf,
@@ -888,9 +889,7 @@ def visualize_all_clusters_access_pairs(
 
 
 
-
-
-# ACCESSIBILITY - SCATTERPLOTS
+# SCATTERPLOTS
 
 def plot_access_vs_socio(
     gdf:          gpd.GeoDataFrame,
@@ -932,9 +931,9 @@ def plot_access_vs_socio(
 
     # quadrant lines at medians
     ax.axvline(data[travel_col].median(), color="grey",
-               linestyle="--", linewidth=0.8, alpha=0.6)
+               linestyle="--", linewidth=1, alpha=0.6)
     ax.axhline(data[socio_col].median(), color="grey",
-               linestyle="--", linewidth=0.8, alpha=0.6)
+               linestyle="--", linewidth=1, alpha=0.6)
 
     # annotate quadrants
     xmax = data[travel_col].max()
@@ -961,7 +960,7 @@ def plot_access_vs_socio(
 
     ax.set_title(
         f"Accessibility vs Socioeconomic Index\n"
-        f"{poi_type.capitalize()} within {max_distance}minutes — Czech Republic",
+        f"{poi_type.capitalize()} within {round(max_distance, 2)} minutes — Czech Republic",
         fontsize=12
     )
     return fig

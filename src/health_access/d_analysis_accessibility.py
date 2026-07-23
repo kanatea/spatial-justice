@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 VALHALLA_API_URL = "http://127.0.0.1:8002" #"http://localhost:8002" #"http://host.docker.internal:8002"
 VALHALLA_MATRIX_LIMIT = 2400 
 
+# 1) Batches matrix queries -->
+# 2) Handles server communication
+# 3) Processes travel time arrays
 def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
     """
     Calculates travel time matrices using the Valhalla routing engine.
@@ -29,7 +32,6 @@ def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
     
     if total_sources == 0 or total_targets == 0:
         return []
-
 
     # Dynamic batching logic
     if total_targets > VALHALLA_MATRIX_LIMIT:
@@ -50,7 +52,7 @@ def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
         batch_sources = sources[i : i + batch_size]
         current_batch_size = len(batch_sources)
         
-        # RESTORED: The specific labeling style you prefer
+        # Log the batch processing information
         logger.info(f"--> Processing batch {batch_num}: origins {i} to {min(i + batch_size, total_sources)}...")
         
         payload = {
@@ -150,6 +152,7 @@ def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
         time.sleep(0.05)
 
     return min_travel_times
+
 
 def calculate_health_accessibility(census_gdf, emergency_gdf, maternity_gdf):
     """
