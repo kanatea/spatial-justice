@@ -6,10 +6,10 @@
 - Hospital Filtering - fFilter raw healthcare provider CSV points from NRPZS:
   - Emergency Care - Filter into Level 1 & 2 acute departments. Discarding ambulance dispatch stations.
   - Maternity Care - Filter into Level 1 & 2 accredited inpatient maternity wards (porodnice) and obstetrical ICUs, discarding non-acute outpatient clinics.
-- Aggregate POIs - calculate count and density (total population) of hospital points for ORPs (districts) - by adding a column 
+- Aggregate POIs - calculate count and density (per 10000) of hospital points for ORPs (districts) - by adding a column 
 
 ## 2. Clustering (b_clustering.py)
-- Demografic parameters selection:
+- Demographic parameters selection:
   - POP_DENS_scaled (population density)
   - PCT_WOMEN_scaled (% women)
   - PCT_ELDERLY_scaled (% age 65+)

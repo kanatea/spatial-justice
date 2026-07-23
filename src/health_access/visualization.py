@@ -891,7 +891,6 @@ def visualize_all_clusters_access_pairs(
         print_highlighted_orps(
             cluster_gdf=cluster_subset,
             cluster_id=cluster_id,
-            title="Nearest Maternity Drive Time",
             label_col=label_col,
             maternity_col=maternity_col,
             emergency_col=emergency_col,
