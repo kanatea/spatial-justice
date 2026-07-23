@@ -159,7 +159,6 @@ def aggregate_poi(boundary_gdf: gpd.GeoDataFrame, point_mapping: Dict[str, gpd.G
     df_result[count_cols] = df_result[count_cols].astype(int)
 
     # Per Capita Density
-    # Per Capita Density
     population = df_result['POCET_OBYV'].replace(0, 1)
     for col in point_mapping.keys():
         # Remove 'COUNT_' prefix if it exists for the per-capita column name
