@@ -28,13 +28,13 @@ We will map travel times to the emergency and maternity units and identify outli
 - INSERT PBF FILE LINK
 
 
-## Methods
+## Methods & Analysis
 Data Preprocessing --> Clustering --> Accessibility Analysis --> Visualizations of Outcomes
 For a more detailed breakdown, please refer to `requirements.md`
 
 1. Data preprocessing includes projecting all data to the appropriate coordinate system (decided by user input), converting raw sociodemographic values that will be used to cluster to percentages, rates, and indices, and standardizing those variables with z-score standardization. There is also filtering emergency and maternity care:
-- Filtering emergency care (build_emergency) includes scanning the specialties and care_form columns in the csv to classify every facility into one of three levels: hospitals with a formal emergency department (urgentní medicína), hospitals with ICU-level acute care but no dedicated ED, and ambulance dispatch stations (ZZS). For this case, we discarded ambulance dispatch stations.
-- Similarly, maternity care filtering scans specialties (gynekologie a porodnictví, porodní asistence) and care forms to isolate accredited inpatient delivery wards (porodnice) and obstetrical ICUs while filtering out non-acute, outpatient-only gynecological practices. This ensures travel times reflect access to facilities equipped for actual labor and childbirth rather than routine prenatal consultations.
+    - Filtering emergency care (build_emergency) includes scanning the specialties and care_form columns in the csv to classify every facility into one of three levels: hospitals with a formal emergency department (urgentní medicína), hospitals with ICU-level acute care but no dedicated ED, and ambulance dispatch stations (ZZS). For this case, we discarded ambulance dispatch stations.
+    - Similarly, maternity care filtering scans specialties (gynekologie a porodnictví, porodní asistence) and care forms to isolate accredited inpatient delivery wards (porodnice) and obstetrical ICUs while filtering out non-acute, outpatient-only gynecological practices. This ensures travel times reflect access to facilities equipped for actual labor and childbirth rather than routine prenatal consultations.
 
 2. For clustering, a multivariate clustering (K-Means) method is conducted based on relevant sociodemographic variables, including population density, % women, % elderly, dependency index, population increase rate, and migration balance rate. We do not conduct a spatially constrained clustering method because we want the clusters to be primarily based on demographics. 
     - According to the pseudo-f value and the silhouette value, 4 clusters of administrative districts were deemed the most statistically appropriate. 
@@ -72,7 +72,7 @@ spatial-justice/
 ```
 
 ## How To Run
-Install UV: [UV reference](https://docs.astral.sh/uv/guides/projects/#creating-a-new-project)
+Install [UV](https://docs.astral.sh/uv/guides/projects/#creating-a-new-project)
 
 Install [Docker](https://docs.docker.com/desktop/setup/install/windows-install/)
 - download valhalla container
