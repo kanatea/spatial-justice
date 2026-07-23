@@ -25,21 +25,24 @@ We will map travel times to the emergency and maternity units and identify outli
 - [National Registry of Healthcare Providers](https://nrpzs.uzis.cz/) (csv file of all healthcare providers)
 - [OpenStreetMap](https://download.geofabrik.de/europe/czech-republic.html) (road networks, regional boundaries, hospital location backup)
 - [Czech Statistical Office](https://csu.gov.cz/2021-census?pocet=10&start=0&podskupiny=171&razeni=-datumVydani) for 2021 Census
+- INSERT PBF FILE LINK
 
 
-## Proposed Method
+## Methods
 Data Preprocessing --> Clustering --> Accessibility Analysis --> Visualizations of Outcomes
 For a more detailed breakdown, please refer to `requirements.md`
 
-1. Data preprocessing includes filtering emergency care (build_emergency). It scans the specialties and care_form columns in the csv to classify every facility into one of three levels: hospitals with a formal emergency department (urgentní medicína), hospitals with ICU-level acute care but no dedicated ED, and ambulance dispatch stations (ZZS). Everything else is discarded.
-Similarly, maternity care filtering scans specialties (gynekologie a porodnictví, porodní asistence) and care forms to isolate accredited inpatient delivery wards (porodnice) and obstetrical ICUs while filtering out non-acute, outpatient-only gynecological practices. This ensures travel times reflect access to facilities equipped for actual labor and childbirth rather than routine prenatal consultations.
+1. Data preprocessing includes projecting all data to the appropriate coordinate system (decided by user input), converting raw sociodemographic values that will be used to cluster to percentages, rates, and indices, and standardizing those variables with z-score standardization. There is also filtering emergency and maternity care:
+- Filtering emergency care (build_emergency) includes scanning the specialties and care_form columns in the csv to classify every facility into one of three levels: hospitals with a formal emergency department (urgentní medicína), hospitals with ICU-level acute care but no dedicated ED, and ambulance dispatch stations (ZZS). For this case, we discarded ambulance dispatch stations.
+- Similarly, maternity care filtering scans specialties (gynekologie a porodnictví, porodní asistence) and care forms to isolate accredited inpatient delivery wards (porodnice) and obstetrical ICUs while filtering out non-acute, outpatient-only gynecological practices. This ensures travel times reflect access to facilities equipped for actual labor and childbirth rather than routine prenatal consultations.
 
-2. For clustering, a multivariate clustering method will be conducted based on relevant sociodemographic, such as population density, average age, natality rate, % women in fertile age, and more.
-    - Expecting 3-5 clusters of administrative districts. 
-    - We will use the [scikit-learn module](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html#sklearn.cluster.KMeans) to conduct k-means clustering. Github repository [here](https://github.com/scikit-learn/scikit-learn/tree/fe2edb3cdbd75ae4e662fda67dcb19277258792b).
+2. For clustering, a multivariate clustering (K-Means) method is conducted based on relevant sociodemographic variables, including population density, % women, % elderly, dependency index, population increase rate, and migration balance rate. We do not conduct a spatially constrained clustering method because we want the clusters to be primarily based on demographics. 
+    - According to the pseudo-f value and the silhouette value, 4 clusters of administrative districts were deemed the most statistically appropriate. 
+    - We used the [scikit-learn module](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html#sklearn.cluster.KMeans) to conduct k-means clustering. Github repository [here](https://github.com/scikit-learn/scikit-learn/tree/fe2edb3cdbd75ae4e662fda67dcb19277258792b).
 
 3. Assess accessibility to emergency and maternity care centers within clusters 
-    - [Valhalla](https://github.com/valhalla/valhalla) is a routing agent that calculates the distances between two points; in this case, we will calculate the distance between the centroids of the districts to the nearest healthcare center, with distinction between emergency care and maternity care. 
+    - For calculating travel times, we used [Valhalla](https://github.com/valhalla/valhalla), which is a routing agent that calculates the distances between two points; in this case, we calculated the distance between the centroids of the districts to the nearest emergency and maternity care center. 
+    - The times were then taken and evaluated within each cluster, visualizing the top 1, 3, or 5 (depending on cluster size) districts with the best and worst access (time taken to travel), as well as the count of maternity and emergency care centers in each district per cluster.
 
 ## Project Structure
 
@@ -74,8 +77,9 @@ Install UV: [UV reference](https://docs.astral.sh/uv/guides/projects/#creating-a
 Install [Docker](https://docs.docker.com/desktop/setup/install/windows-install/)
 - download valhalla container
 - command line `docker start valhalla`
+- install tiles of your location of preference
 
-Please reference `pyproject.toml` for requirements and dependencies.
+Please reference `pyproject.toml` for technical requirements and dependencies.
 
 `uv run health_access` to run the project. 
 
@@ -88,13 +92,13 @@ Please reference `pyproject.toml` for requirements and dependencies.
 | -proj | --epsg_projection | 5514 | Target EPSG projection system |
 | -n | --n-clusters | 4 | Number of KMeans clusters |
 | -rs | --random_state | 42 | Randomization seed for replicability |
-| -st | --skip-project | False | Skip projection transformation (use already transformed data) |
+| -nl | --no_legend | True | Add legend to cluster map |
+| | --scope | COUNTRY | Analysis spatial scope: 'COUNTRY' or 'PRAGUE' |
+| -sn | --skip-nodes | True | Skip street network intersection node analysis |
+| -h_filter | --hospital_filter | True | Filter facilities to Level 1 & 2 acute care centers |
+| -sp | --skip-project | False | Skip projection transformation (use already transformed data) |
 | -ss | --skip_standardize | False | Skip census variable scaling and POI aggregation |
 | -sc | --skip-clustering | False | Skip clustering step |
 | -sesda | --skip-esda | False | Skip ESDA (Moran's I and LISA analysis) step |
 | -sa | --skip-accessibility | False | Skip Valhalla accessibility calculation step |
 | -sav | --skip-accessibility-viz | False | Skip accessibility visualization map rendering |
-| -nl | --no_legend | True | Add legend to cluster map |
-| | --scope | COUNTRY | Analysis spatial scope: 'COUNTRY' or 'PRAGUE' |
-| -sn | --skip-nodes | True | Skip street network intersection node analysis |
-| -h_filter | --hospital_filter | True | Filter facilities to Level 1 & 2 acute care centers |

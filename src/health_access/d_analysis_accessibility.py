@@ -270,3 +270,29 @@ def export_clusters_separately(
         path = output_dir / f"cluster_{cluster_id}.geojson"
         subset.to_file(path, driver="GeoJSON")
         logger.info(f"Saved cluster {cluster_id} -> {path.name}")
+
+
+
+def print_defining_features(df: gpd.DataFrame, features: List[str]):
+    """
+    Calculates the Z-score of cluster means relative to the global mean.
+    Values > 1.0 or < -1.0 indicate a defining characteristic.
+    """
+    # 1. Calculate global statistics
+    global_means = df[features].mean()
+    global_stds = df[features].std()
+    
+    # 2. Calculate cluster means
+    cluster_means = df.groupby('cluster')[features].mean()
+    
+    # 3. Compute Z-scores: (Cluster Mean - Global Mean) / Global Std
+    z_scores = (cluster_means - global_means) / global_stds
+    
+    print("\n" + "="*70)
+    print("STEP 2: DEFINING FEATURES (Z-Scores)")
+    print("Interpretation: > 1.0 (High) | < -1.0 (Low)")
+    print("="*70)
+    print(z_scores)
+    print("="*70 + "\n")
+    
+    return z_scores

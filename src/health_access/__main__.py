@@ -61,11 +61,34 @@ def main(
         "--random_state", 
         "-rs", 
         help="Randomization seed for replicability (overrides config). Default: 42."
+        ),
+    show_legend: bool = typer.Option(
+            True, 
+            "--no_legend", 
+            "-nl", 
+            help="Add a legend to the cluster map." 
+            ),
+    analysis_scope: str = typer.Option(
+        "COUNTRY",
+        "--scope",
+        help="Analysis scope option: 'PRAGUE' or 'COUNTRY'."
+        ),
+    skip_nodes: bool = typer.Option(
+        True, 
+        "--skip-nodes", 
+        "-sn", 
+        help="Skip street network node density/accessibility analysis."
+        ),
+    hospital_filter: bool = typer.Option(
+        True, 
+        "--hospital_filter", 
+        "-h_filter", 
+        help="Remove Level 2 Hospital Filter." 
         ),    
-    skip_project: bool = typer.Option(
+    skip_projection: bool = typer.Option(
         False, 
-        "--skip-project", 
-        "-st", 
+        "--skip-projection", 
+        "-sp", 
         help="Skip projection transformation (use already transformed data)."
         ),
     skip_standardize: bool = typer.Option(
@@ -79,12 +102,6 @@ def main(
         "--skip-clustering", 
         "-sc", 
         help="Skip clustering step."
-        ),
-    clustering_viz: bool = typer.Option(
-        False, 
-        "--clustering-viz", 
-        "-cv", 
-        help="Enable clustering visualization step."
         ),
     skip_esda: bool = typer.Option(
         False, 
@@ -103,29 +120,6 @@ def main(
         "--skip-accessibility-viz", 
         "-sav", 
         help="Skip accessibility visualization step."
-        ),
-    show_legend: bool = typer.Option(
-        True, 
-        "--no_legend", 
-        "-nl", 
-        help="Add a legend to the cluster map." 
-        ),
-    analysis_scope: str = typer.Option(
-        "COUNTRY",
-        "--scope",
-        help="Analysis scope option: 'PRAGUE' or 'COUNTRY'."
-        ),
-    skip_nodes: bool = typer.Option(
-        True, 
-        "--skip-nodes", 
-        "-sn", 
-        help="Skip street network node density/accessibility analysis."
-        ),
-    hospital_filter: bool = typer.Option(
-        True, 
-        "--hospital_filter", 
-        "-h_filter", 
-        help="Remove Level 2 Hospital Filter." 
         ),
 ):
     
@@ -167,7 +161,7 @@ def main(
         }
 
    # 1. PREPROCESSING: Transform (reproject) all raw files to EPSG:5514
-    if not skip_project:
+    if not skip_projection:
         logger.info("Starting Projection Transformation...")
         transform_projections(
             raw_dir, 
@@ -508,6 +502,7 @@ def main(
                     basemap_gdf=gdf_vars,
                     value_col="time_maternity",
                     output_path=viz_dir /"cluster_maternity_accessibility_8panel.png",
+                    cluster_col="cluster",
                     title_label="Nearest Maternity Care Center Drive Time"
                 )
     
@@ -517,6 +512,7 @@ def main(
                     basemap_gdf=gdf_vars,
                     value_col="time_emergency",
                     output_path=viz_dir / "cluster_emergency_accessibility_8panel.png",
+                    cluster_col="cluster",
                     title_label="Nearest Emergency Center Drive Time"
                 )
                 
@@ -544,10 +540,11 @@ def main(
                     label_col="NAZ_ORP", 
                     maternity_col="time_maternity",
                     emergency_col="time_emergency",
+                    maternity_count_col="COUNT_MATERNITY",
+                    emergency_count_col="COUNT_EMERGENCY",
                     maternity_rank_col="ranking_maternity",
                     emergency_rank_col="ranking_emergency",
-                    cmap="RdYlGn_r",
-                    k=4
+                    cmap="RdYlGn_r"
                 )
 
                 gdf_access_gap = gdf_access.copy()
