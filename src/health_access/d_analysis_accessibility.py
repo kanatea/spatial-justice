@@ -9,7 +9,10 @@ from typing import List
 logger = logging.getLogger(__name__)
 
 VALHALLA_API_URL = "http://127.0.0.1:8002" #"http://localhost:8002" #"http://host.docker.internal:8002"
+# local machine where Valhalla is running inside Docker
+
 VALHALLA_MATRIX_LIMIT = 2400 
+# 
 
 # CALCULATE TRAVEL TRIME MATRICES using Valhalla routing engine
 def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
@@ -25,6 +28,9 @@ def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
 
     """
     endpoint = f"{VALHALLA_API_URL}/sources_to_targets" # matrix API
+    # a group of origins and all destinations at once,
+    # and get back a full matrix of travel times in one response.
+    # This function manages how to use that efficiently.
 
     # Prepare sources and targets for Valhalla API
     sources = [{"lat": float(lat), "lon": float(lon), "radius": 15000} for lat, lon in origins]
@@ -47,7 +53,7 @@ def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
 
     AVG_SPEED_KMPH = 60 
     CIRCUITY_FACTOR = 1.3 
-    min_travel_times = [None] * total_sources
+    min_travel_times = [None] * total_sources # Creates an empty list with one slot per ORP --> the results get stored here
     
     # Track batch number for the console output
     batch_num = 1
