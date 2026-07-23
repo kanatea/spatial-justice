@@ -44,10 +44,16 @@ For a more detailed breakdown, please refer to `requirements.md`
 
 4. Visualization
     - Multiple different stages of the project workflow were visualized to provide better understanding of the process.
-    - !!! --> ADD TO THIS SECTION???
-        - cluster map with points?
-        - final cluster maps?
-        - more?
+
+    - Cluster map (4 clusters) with points
+    ![alt text](map_clusters_4_points.png)
+    
+    - Global travel time map
+    ![alt text](map_access_emergency.png)![alt text](map_access_maternity.png)
+
+    - Final travel time accessibility map per cluster
+    ![alt text](cluster_1_access_pair.png)![alt text](cluster_2_access_pair.png)
+    ![alt text](cluster_3_access_pair.png)![alt text](cluster_4_access_pair.png)
 
 ## Limitations and Future Work
 This concept of this project has potential for future extention. Due to the time contraints, all ideas of the authors could not be fully implemented. The current stage represents a starting point for more advanced analysis.
