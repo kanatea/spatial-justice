@@ -3,14 +3,14 @@ import geopandas as gpd
 import pandas as pd
 from pathlib import Path
 from glob import glob
-from typing import Union, List, Dict
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from typing import Union, Dict
+from sklearn.preprocessing import StandardScaler
 
 # Setup logging
 logger = logging.getLogger(__name__)
 
 # Function to transform projections 
-##CHANGE NAME TO PROJECTION
+# CHANGE NAME TO PROJECTION
 def transform_projections(raw_dir: Union[str, Path], transformed_dir: Union[str, Path], target_epsg: int):
     """
     Reads all geojson files in the raw data folder, transforms them to target_epsg,
@@ -53,20 +53,20 @@ def transform_projections(raw_dir: Union[str, Path], transformed_dir: Union[str,
 
 
 
-#automated this process to run in main.py
-
 def standardize_data(input_path: Path, output_path: Path):
     """
-    Calculates demographic variables and scales them using MinMaxScaler 
+    1) Recalculates variables from absolute to relative values
+    --> To avoid biasing the clustering toward larger districts,
+    we calculate ratios and percentages instead of using raw counts.
+
+    2) Calculates demographic variables and scales them using StandardScaler 
     to ensure all features contribute equally to the clustering.
     """
     # Load data
     gdf = gpd.read_file(input_path)
 
-    # --- CALCULATIONS ---
-    # We calculate the ratios first because scaling raw counts would 
-    # bias the clustering toward larger districts.
-
+    # --- CALCULATIONS of Relative Values ---
+    
     # Area in km²
     gdf["AREA_KM2"] = gdf["SHAPE_Area"] / 1_000_000
 
@@ -92,8 +92,7 @@ def standardize_data(input_path: Path, output_path: Path):
     gdf["MIG_BAL_RATE"] = (gdf["MIG_BAL"] / gdf["POCET_OBYV"]) * 1000
 
 
-    
-    # --- SCALING
+    # The acutal SCALING
     # Define the columns that will be used for clustering
     cols_to_scale = [
         "POP_DENS", "PCT_WOMEN", "PCT_CHILD", 
@@ -105,8 +104,6 @@ def standardize_data(input_path: Path, output_path: Path):
 
     # Initialize the Scaler
     scaler = StandardScaler()
-    #what does standardscaler do again? i think this is the z score one
-    #scaler = MinMaxScaler()
 
     # Apply scaling. 
     # We create new columns with a '_scaled' suffix to keep the original values for analysis/mapping

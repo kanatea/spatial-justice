@@ -10,10 +10,8 @@ from matplotlib.lines import Line2D
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
 
-#==============================
-# CLUSTER MAP
-#==============================
 
+# CLUSTER MAP
 def create_cluster_map(
     gdf, 
     basemap_gdf,

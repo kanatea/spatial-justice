@@ -159,7 +159,8 @@ def main(
             "lon_min": 14.15, "lon_max": 14.80
         }
 
-   # 1. PREPROCESSING: Transform (reproject) all raw files to EPSG:5514
+   # 1. PREPROCESSING:
+   # a) Transform (reproject) all raw files to EPSG:5514
     if not skip_projection:
         logger.info("Starting Projection Transformation...")
         transform_projections(
@@ -171,7 +172,7 @@ def main(
         logger.info("Skipping transform.")
 
 
-    # PREPROCESSING CONT: Calculate Standardized Census Variables + Add POI 
+    # b) Calculate Standardized Census Variables + Add POI 
     # We only run this if the file was successfully created in the prior step
     if not skip_standardize:
         if input_file.exists():
@@ -210,7 +211,8 @@ def main(
         
         logger.info("Data preprocessing complete!")
 
-    # 2. CLUSTERING - We only run this if the file was successfully created in the prior step, and if the user didn't specify to skip clustering
+    # 2. CLUSTERING - We only run this if the file was successfully created in the prior step,
+    # and if the user didn't specify to skip clustering
     if not skip_clustering: # We check for the file first.
         if census_output.exists():
             logger.info(f"Starting Clustering with {n_clusters} clusters...")
@@ -380,8 +382,8 @@ def main(
     
 
 # 4. ACCESSIBILITY ANALYSIS
-    # RUNS USING VALHALLA - WE NEED TO ACTIVATE THAT USING DOCKER
-    # we could divide this step into a separate script OR have at least separated some steps - the user could choose only some of them using flags.
+    # RUNS USING VALHALLA - WE NEED TO ACTIVATE THAT USING DOCKER FIRST
+    # For future improvement: the user could choose only some of them using flags.
     if not skip_accessibility:
         if not clustered_output.exists():
             logger.error("Clustered file missing. Run clustering first.")
@@ -437,7 +439,7 @@ def main(
         logger.info("Skipping Accessibility Calculation...")
 
 
-    #ACCESSIBILITY VISUALIZATION 
+    # ACCESSIBILITY VISUALIZATION 
     if not skip_accessibility_viz:
             if not access_output.exists():
                 logger.error("Accessibility file missing. Run accessibility calculation first.")

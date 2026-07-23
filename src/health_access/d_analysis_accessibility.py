@@ -11,15 +11,18 @@ logger = logging.getLogger(__name__)
 VALHALLA_API_URL = "http://127.0.0.1:8002" #"http://localhost:8002" #"http://host.docker.internal:8002"
 VALHALLA_MATRIX_LIMIT = 2400 
 
-# 1) Batches matrix queries -->
-# 2) Handles server communication
-# 3) Processes travel time arrays
+# CALCULATE TRAVEL TRIME MATRICES using Valhalla routing engine
 def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
     """
     Calculates travel time matrices using the Valhalla routing engine.
     Instead of downloading a road network like Pandana,
     this version sends routing requests to Valhalla running locally in Docker.
     Returns travel time in minutes instead of distance in metres.
+
+    1) Batches matrix queries -->
+    2) Handles server communication
+    3) Processes travel time arrays
+
     """
     endpoint = f"{VALHALLA_API_URL}/sources_to_targets"
     
@@ -139,7 +142,7 @@ def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
                 min_travel_times[global_idx] = (min_dist_km * CIRCUITY_FACTOR) / (AVG_SPEED_KMPH / 60)
             
             except Exception as other_err:
-                logger.error(f"❌ ORP {global_idx} critical error: {other_err} --> Using Straight-Line Approximation")
+                logger.error(f"XXXXX ORP {global_idx} critical error: {other_err} --> Using Straight-Line Approximation")
                 source_lat, source_lon = source['lat'], source['lon']
                 min_dist_km = float('inf')
                 for target in targets:
@@ -153,9 +156,14 @@ def get_valhalla_matrix(origins, destinations, costing="auto", units="km"):
     return min_travel_times
 
 
+# MAIN ANALYSIS FUNCTION
+# --> CALCULATES TRAVEL TIMES TO EMERGENCY AND MATERNITY CARE SITES
 def calculate_health_accessibility(census_gdf, emergency_gdf, maternity_gdf):
     """
     Main entry point for accessibility analysis.
+    
+    1) Cleans invalid or duplicate hospital geometries
+    2) Calculates matrices separately for emergency vs. maternity
     """
     census_gdf = census_gdf.copy()
     
@@ -191,14 +199,14 @@ def calculate_health_accessibility(census_gdf, emergency_gdf, maternity_gdf):
     logger.info(f"  - Emergency Sites: {len(em_dest)}")
     logger.info(f"  - Maternity Sites: {len(mat_dest)}")
 
-    # Emergency Care
+    # Emergency Care TIME CALCULATION
     if len(origins) > 0 and len(em_dest) > 0:
         logger.info("Calculating travel times to Emergency Care sites...")
         census_gdf["time_emergency"] = get_valhalla_matrix(origins, em_dest)
     else:
         census_gdf["time_emergency"] = np.nan
 
-    # Maternity Care
+    # Maternity Care TIME CALCULATION
     if len(origins) > 0 and len(mat_dest) > 0:
         logger.info("Calculating travel times to Maternity Care sites...")
         census_gdf["time_maternity"] = get_valhalla_matrix(origins, mat_dest)
@@ -208,7 +216,7 @@ def calculate_health_accessibility(census_gdf, emergency_gdf, maternity_gdf):
     return census_gdf
 
 
-
+# Access rankings --> individual clusters
 def add_access_rankings(
     gdf,
     maternity_col="time_maternity",
@@ -217,9 +225,11 @@ def add_access_rankings(
     rank_emergency_col="ranking_emergency",
 ):
     """
-    Add ranking columns based on ascending travel time.
-    Rank 1 = shortest/best access.
-    NaN travel times remain NaN in ranking columns.
+    1) Adds ranking columns based on ascending travel time - within each demographic cluster
+    2) Exports individual GeoJSONs
+    
+    Rank 1 = shortest/best access
+    NaN travel times remain NaN in ranking columns
     """
     gdf = gdf.copy()
 
@@ -242,8 +252,7 @@ def add_access_rankings(
     return gdf
 
 
-#CODE TO SEPARATE CLUSTERS TO CONDUCT SUBSEQUENT ANALYSES
-
+# SEPARATE CLUSTERS TO CONDUCT SUBSEQUENT ANALYSES
 def export_clusters_separately(
     gdf,
     output_dir,
@@ -252,8 +261,13 @@ def export_clusters_separately(
     emergency_col="time_emergency",
 ):
     """
-    Saves each cluster into a separate GeoJSON file, adding
-    within-cluster ranking_maternity and ranking_emergency columns.
+    Saves each cluster into a separate GeoJSON file.
+    Adds within-cluster ranking_maternity and ranking_emergency columns.
+
+    e.g.: Comparing a rural peripheral ORPs withing cluster.
+    Instead of comparing rural vs. urban.
+    
+    Comparing spatial justice relative to peer regions --> with similar socioeconomic conditions.
     """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
