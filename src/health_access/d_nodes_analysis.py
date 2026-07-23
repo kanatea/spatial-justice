@@ -4,7 +4,6 @@ import time
 import requests
 import geopandas as gpd
 import matplotlib.pyplot as plt
-from pathlib import Path
 from pyrosm import OSM
 import numpy as np
 from shapely.geometry import Point

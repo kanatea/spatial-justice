@@ -9,8 +9,7 @@ from health_access.a_preprocessing import transform_projections, standardize_dat
 from health_access.b_clustering import find_optimal_k, apply_clustering, print_cluster_characteristics, print_defining_features, plot_cluster_characteristics
 from health_access.c_analysis_moran import create_weights_matrices, build_morans_table, compute_lisa
 from health_access.d_analysis_accessibility import calculate_health_accessibility, add_access_rankings, export_clusters_separately
-from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, run_cluster_viz, plot_lisa, visualize_cluster_accessibility_8panel, visualize_all_clusters_access_pairs, plot_hospital_distribution
-
+from health_access.visualization import create_cluster_map, plot_accessibility_map, plot_access_vs_socio, run_cluster_viz, plot_lisa, visualize_cluster_accessibility_8panel, visualize_all_clusters_access_pairs
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -20,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 app = typer.Typer(context_settings={"help_option_names": ["-h", "--help"]})
 
+#ideally would have liked to incorporate this in the CLI flags, this is hard coded features used for clustering
 CLUSTERING_FEATURES = [
     "POP_DENS_scaled", 
     "PCT_WOMEN_scaled", 
@@ -139,6 +139,7 @@ def main(
     viz_dir = project_root/"visualizations"
     viz_cluster_output = viz_dir / "cluster_viz"
     # Load hospital points 
+    #for future use will change the name of the file for it to not be hard coded
     em_path  = transformed_dir / "OD_emergency_care.geojson"
     mat_path = transformed_dir / "OD_maternity_care.geojson"
 
@@ -462,10 +463,10 @@ def main(
                     rank_emergency_col="ranking_emergency",
                 )
 
-                # Optionally overwrite the original clustered access file
+                # Overwrite the original clustered access file
                 gdf_access.to_file(access_output, driver="GeoJSON")
 
-
+                #exporting each cluster to its own geojson file for future analyses
                 clusters_dir.mkdir(parents=True, exist_ok=True)
                 export_clusters_separately(
                     gdf_access, 
@@ -474,20 +475,19 @@ def main(
                     maternity_col="time_maternity",
                     emergency_col="time_emergency"
                 )
-                
+
+                #plotting global accessibility map for emergency
                 fig_em = plot_accessibility_map(
                     gdf=gdf_access,
                     column="time_emergency",
                     district_col="NAZ_ORP",
                     title="Travel Time to Nearest Emergency Hospital (minutes)",
                     output_path=viz_dir / "map_access_emergency.png",
-                    #poi_type="emergency hospital",
                     cmap="RdYlGn_r",
                     show_legend=show_legend,
                 )
                 # should we have this or a map with the points? or both?
-                # we can have both, but then we need to add a legend for the points.
-                # Map C: maternity map
+                # global accessibility for maternity
                 fig_mat = plot_accessibility_map(
                     gdf=gdf_access,
                     column="time_maternity",
@@ -501,6 +501,7 @@ def main(
 
                 logger.info("Generating cluster accessibility profile visualizations.")
                 #CLUSTER TRAVEL TIME VISUALIZATIONS  
+                #maternity
                 visualize_cluster_accessibility_8panel(
                     cluster_gdf=gdf_access,
                     viz_dir=viz_dir,
@@ -510,7 +511,8 @@ def main(
                     cluster_col="cluster",
                     title_label="Nearest Maternity Care Center Drive Time"
                 )
-    
+
+                #emergency
                 visualize_cluster_accessibility_8panel(
                     cluster_gdf=gdf_access,
                     viz_dir=viz_dir,
@@ -523,20 +525,15 @@ def main(
                 
                 #CARE CENTER COUNT VISUALIZATIONS
                 logger.info("Generating detailed 3x2 grid metric summaries for each demographic slice...")
-                
-                # This triggers your new consolidated layout logic internally
+
+                #consolidated layout logic is in viz file instead of main
                 run_cluster_viz(
                     clusters_dir = clusters_dir, 
                     viz_dir = viz_cluster_output,
                     basemap_gdf = gdf_vars
                 )
-                # MAP: access gap (maternity minus emergency)
-                # this needs to be added in the visualization.py first
-                #plot_accessibility_gap_map(
-                #    gdf=gdf_access,
-                #    output_path=project_root / "visualizations/map_access_gap.png",
-                #)
 
+                #creating final pair cluster accessibility maps
                 visualize_all_clusters_access_pairs(
                     cluster_gdf=gdf_access,
                     basemap_gdf=gdf_vars,

@@ -4,14 +4,12 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from pathlib import Path
 import pandas as pd
-import osmnx as ox
-import mapclassify
 from matplotlib.lines import Line2D
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
 
 
-# CLUSTER MAP
+# Creating the cluster map
 def create_cluster_map(
     gdf, 
     basemap_gdf,
@@ -24,6 +22,15 @@ def create_cluster_map(
     title="Cluster Map",
     ax=None
 ):
+    """
+        Args:
+            gdf: geodataframe containing clusters
+            basemap_gdf: the gdf containing the boundaries to use for the basemap
+            project_root: directory
+            n_clusters: the number of clusters
+            with_points: indicates whether we will plug point data in 
+            point_mapping: column+location of points
+    """
     # Dynamic filename
     # If ax is provided, we don't create a new figure or save a file
     if ax is None:
@@ -33,7 +40,6 @@ def create_cluster_map(
     #plot the clusters
     basemap_gdf.plot(ax=ax, color='#f2f2f2', edgecolor='#282525', linewidth=0.6)
 
-    # 2. Plot the clusters
     clusters = sorted(gdf['cluster'].unique())
     
     # Use passed palette or fallback to the professional default
@@ -48,7 +54,7 @@ def create_cluster_map(
     # Plot the clusters on top of the grey basemap
     gdf.plot(color=gdf['color'], legend=False, ax=ax, edgecolor='#282525', linewidth=0.6)
 
-    # 3. OVERLAY POINTS (Using the specific aesthetics requested)
+    # OVERLAY POINTS (Using the specific aesthetics requested)
     point_handles = []
     if with_points and point_mapping:
         # Aesthetic Configuration: { Label: (Color, Marker) }
@@ -96,8 +102,6 @@ def create_cluster_map(
     if ax is not None: # If we were passed an axis, don't save here
         return None 
     
-    #plt.title(f"{title} ({suffix}) --- {n_clusters} clusters", fontsize=15)
-    #ax.set_axis_off() 
     plt.savefig(output_path, bbox_inches='tight', dpi=300)
     plt.close()
     return output_path
@@ -109,6 +113,10 @@ def visualize_cluster_metrics(file, viz_dir, basemap_gdf):
     """
     Iterates through each cluster GeoJSON and creates a single consolidated
     image layout containing all 6 metric subplots (Count vs Density).
+    
+    Args:
+        file: for every file in cluster_files, a specified directory called in run_cluster_viz
+        viz_dir: directory for visualization outuput
     """
     # Fallback to engine="fiona" if pyogrio encounters C-level GEOS memory allocation errors
     try:
@@ -178,7 +186,12 @@ def visualize_cluster_metrics(file, viz_dir, basemap_gdf):
 # Main Execution Logic
 def run_cluster_viz(clusters_dir, viz_dir, basemap_gdf):
     """
-    Finds all cluster files and triggers the worker function for each.
+    Finds all cluster files and triggers the worker function for each using visualize_cluster_metrics. 
+    Execution function that is called into main.
+    
+    Args:
+            clusters_dir: directory containing clusters to be visualized
+            viz_dir: directory for visualization output
     """
     clusters_dir = Path(clusters_dir)
     viz_dir = Path(viz_dir)
@@ -249,6 +262,8 @@ def plot_lisa(gdf_lisa, output_path):
 #==============================
 # ACCESSIBILITY
 #=======================================================================================
+
+#optional and test to see the hospital distribution
 def plot_hospital_distribution(orp_gdf, em_gdf, mat_gdf):
     fig, ax = plt.subplots(figsize=(10, 10))
 
@@ -283,21 +298,25 @@ def plot_hospital_distribution(orp_gdf, em_gdf, mat_gdf):
     return fig
 
 
-
+#main accessibility map
 def plot_accessibility_map(
     gdf:          gpd.GeoDataFrame,
     column:       str,
     district_col: str,
     title:        str,
-    #poi_type:     str,
     output_path:  str,
     cmap:         str,
     show_legend:  bool = True,
-    label_districts: bool = True, # Added toggle for labels
+    label_districts: bool = True, # toggle for labels
 ) -> plt.Figure:
     """
     Choropleth map of an accessibility metric across districts.
     RdYlGn_r: red = poor access (high travel time), green = good access.
+    
+    Args:
+        gdf: main accessibility gdf
+        column: column containing travel time being mapped
+        district_col: name of districts
     """
     fig, ax = plt.subplots(figsize=(12, 12))
 
@@ -367,6 +386,10 @@ def visualize_cluster_accessibility_8panel(
       - 4 rows = clusters
       - left column = global accessibility scale
       - right column = within-cluster accessibility scale
+    Args:
+        cluster_gdf: gdf containing cluster information
+        value_col: time column
+        cluster_col: cluster column
     """
     viz_dir = Path(viz_dir)
     viz_dir.mkdir(parents=True, exist_ok=True)
@@ -508,7 +531,6 @@ def get_n_highlight(n_orps):
 def print_highlighted_orps(
     cluster_gdf,
     cluster_id,
-    title,
     label_col,
     maternity_col,
     emergency_col,
@@ -521,7 +543,17 @@ def print_highlighted_orps(
     """
     Print highlighted ORPs using the union of best/worst ORPs from both
     maternity and emergency rankings, while keeping the original output format.
-    """
+    
+    Args:
+            cluster_gdf: gdf containing cluster information
+            cluster_id: cluster column
+            label_col: district name
+            maternity_col: time
+            emergency_col: time
+            count_col: count of centers
+            rank_col: ranking
+            n_highlight: number of best/worst 
+        """
     maternity_highlighted = select_best_worst_by_rank(
         cluster_gdf, maternity_rank_col, n_highlight
     ).copy()
