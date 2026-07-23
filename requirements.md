@@ -41,12 +41,6 @@
   - data/processed/clusters/cluster_X.geojson
 
 ## 5. Visualizations (visualization.py)
-Visualizing the outcomes of each step along the way
-- A1) Clusters A2) Clusters with emergency/materninty points
-- B) LISA results (emergency / materninty / combined)
-- C1) Accessibility (time_travel) ranking of ORPs within each cluster / inbetween clusters
-- C2) Accessibility comparison between emergency and materninty units --> calculate a "time gap"
-
 A. Cluster profiles:
 - Cluster choropleth map over grey context basemap
 - Cluster map with point facility overlays for emergency cicles and maternity crosses

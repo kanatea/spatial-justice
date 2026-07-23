@@ -3,9 +3,8 @@ import time
 import requests
 import geopandas as gpd
 import numpy as np
-from shapely.geometry import Point
-import pandas as pd
 from pathlib import Path
+from typing import List
 
 logger = logging.getLogger(__name__)
 

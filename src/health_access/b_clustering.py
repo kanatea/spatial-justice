@@ -1,5 +1,4 @@
 import logging
-from typing import List
 import matplotlib.pyplot as plt
 import pandas as pd
 import geopandas as gpd
