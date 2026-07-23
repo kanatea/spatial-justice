@@ -25,8 +25,6 @@ We will map travel times to the emergency and maternity units and identify outli
 - [National Registry of Healthcare Providers](https://nrpzs.uzis.cz/) (csv file of all healthcare providers)
 - [OpenStreetMap](https://download.geofabrik.de/europe/czech-republic.html) (road networks, regional boundaries, hospital location backup)
 - [Czech Statistical Office](https://csu.gov.cz/2021-census?pocet=10&start=0&podskupiny=171&razeni=-datumVydani) for 2021 Census
-- INSERT PBF FILE LINK
-
 
 ## Methods & Analysis
 Data Preprocessing --> Clustering --> Accessibility Analysis --> Visualizations of Outcomes
@@ -52,11 +50,16 @@ For a more detailed breakdown, please refer to `requirements.md`
         - more?
 
 ## Limitations and Future Work
-This concept of this project has more potential for future extention. Due to the time contraints, all ideas of the authors could not be fully implemented. The current stage represents a starting point for more advanced analysis.
+This concept of this project has potential for future extention. Due to the time contraints, all ideas of the authors could not be fully implemented. The current stage represents a starting point for more advanced analysis.
 
 Some examples of the possibilities for improvement are:
-- Automating n_clusters
-- Adding more CLI flags - and specifically for cluster features
+- Automating n_clusters so that the best fit n_clusters from the pseudo f and silhouette value is automatically used, unless there is a user inputted number.
+- Adding more CLI flags 
+    - Cluster features (sociodemographic variables used in clustering)
+    - Valhalla routing methods (e.g., auto, bicycle, bus)
+    - Sociodemographic variables used in scatterplot
+    - ESDA - choose between Queen, Rook, or KNN for LISA analysis and visualization.
+- Being more intentional with the ESDA (Global Moran + LISA) and connecting it back to the cluster analysis.
 - Finishing nodes analysis
 - Adding compound deprivation analysis
 - Improving scatterplot visualizations
@@ -77,8 +80,8 @@ spatial-justice/
 │   └── final_cluster_maps/   # Comparative access maps by cluster
 ├── valhalla_tiles/           # Local OpenStreetMap PBF network files for Valhalla
 ├── src/health_access/
-│   ├── init.py
-│   ├── main.py           
+│   ├── __init__.py
+│   ├── __main__.py           
 │   ├── a_preprocessing.py          # Spatial transformations & data standardization
 │   ├── b_clustering.py             # KMeans optimization & cluster characterization
 │   ├── c_analysis_moran.py         # Global Moran's I & Local LISA spatial autocorrelation
@@ -112,7 +115,6 @@ Please reference `pyproject.toml` for technical requirements and dependencies.
 | -rs | --random_state | 42 | Randomization seed for replicability |
 | -nl | --no_legend | True | Add legend to cluster map |
 | | --scope | COUNTRY | Analysis spatial scope: 'COUNTRY' or 'PRAGUE' |
-| -sn | --skip-nodes | True | Skip street network intersection node analysis |
 | -h_filter | --hospital_filter | True | Filter facilities to Level 1 & 2 acute care centers |
 | -sp | --skip-project | False | Skip projection transformation (use already transformed data) |
 | -ss | --skip_standardize | False | Skip census variable scaling and POI aggregation |
@@ -120,3 +122,4 @@ Please reference `pyproject.toml` for technical requirements and dependencies.
 | -sesda | --skip-esda | False | Skip ESDA (Moran's I and LISA analysis) step |
 | -sa | --skip-accessibility | False | Skip Valhalla accessibility calculation step |
 | -sav | --skip-accessibility-viz | False | Skip accessibility visualization map rendering |
+| -sn | --skip-nodes | True | Skip street network intersection node analysis |

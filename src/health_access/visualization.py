@@ -241,7 +241,7 @@ def plot_lisa(gdf_lisa, output_path):
     
     # 5. Clean up the visual
     ax.set_axis_off() # Remove the lat/lon axis for a cleaner look
-    plt.title("Spatial Autocorrelation of Healthcare Access (LISA)", fontsize=15)
+    plt.title("Spatial Autocorrelation of Access for All Care Centers (LISA)", fontsize=15)
     
     plt.savefig(output_path, bbox_inches='tight', dpi=300)
     plt.close()

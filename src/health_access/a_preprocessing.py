@@ -10,7 +10,6 @@ from sklearn.preprocessing import StandardScaler
 logger = logging.getLogger(__name__)
 
 # Function to transform projections 
-# CHANGE NAME TO PROJECTION
 def transform_projections(raw_dir: Union[str, Path], transformed_dir: Union[str, Path], target_epsg: int):
     """
     Reads all geojson files in the raw data folder, transforms them to target_epsg,
@@ -127,6 +126,9 @@ def standardize_data(input_path: Path, output_path: Path):
 
 def aggregate_poi(boundary_gdf: gpd.GeoDataFrame, point_mapping: Dict[str, gpd.GeoDataFrame]) -> gpd.GeoDataFrame:
     """
+    Creates an additional column that aggregates the count of maternity and emergency care centers per district.
+    Also calculates care center density for all emergency, maternity, and combined by dividing count by total district population * 10000
+    + creates columns for density
     Args:
         boundary_gdf: The ORP boundaries GeoDataFrame.
         point_mapping: Dict mapping column name to GDF {'COUNT_EMERGENCY': emergency_gdf}

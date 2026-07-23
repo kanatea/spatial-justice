@@ -1,18 +1,32 @@
 import logging
 import matplotlib.pyplot as plt
-import pandas as pd
 import geopandas as gpd
 import seaborn as sns
 from typing import List, Optional
-
 import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.metrics import calinski_harabasz_score, silhouette_score
-#from sklearn.preprocessing import StandardScaler
 
+# Setup logging
 logger = logging.getLogger(__name__)
 
+#function to find/print the optimal number of clusters
 def find_optimal_k(df: gpd.DataFrame, features: List[str], random_state: int, max_k=10):
+    """
+        Takes up to 10 clusters and prints the Chalinski Harabasz score (pseudo-f) and the silhouette score for each.
+        
+        Chalinski Harabasz score: Measures the ratio of between-cluster variance to within-cluster variance.
+            Higher score indicates better-defined clusters.
+        Silhouette score: Measures how similar an object is to its own cluster compared to other clusters. 
+            Ranges from -1 to 1; higher score is better.
+        
+        The "k" with the highest pseudo-f and the most reasonably highest silhouette score (around or above .25) is the best model fit.
+
+        Args:
+            df: dataframe containing the features to be clustered
+            features: features used to be clustered
+            max_k: number of clusters to consider (max is 10, can be increased if needed but most times not necessary)
+    """
     #Make sure all requested features exist
     missing_cols = [col for col in features if col not in df.columns]
     if missing_cols:
@@ -48,12 +62,17 @@ def find_optimal_k(df: gpd.DataFrame, features: List[str], random_state: int, ma
 
     # Return the K that maximizes the Pseudo F-statistic
     optimal_k = k_range[np.argmax(ch_scores)]
+    #returns it but we dont do anything with it lol
     return optimal_k, ch_scores, sil_scores
 
 
 def apply_clustering(df: gpd.DataFrame, features: List[str], n_clusters: int, random_state: int) -> gpd.DataFrame:
     """
     Performs K-Means clustering using explicit parameters
+    Args:
+        df: dataframe containing the features to be clustered
+        features: features used to be clustered 
+        n_clusters: number of clusters to use
     Returns:
         DataFrame with an added 'cluster' column.
     """

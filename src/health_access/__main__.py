@@ -78,12 +78,13 @@ def main(
         "-sn", 
         help="Skip street network node density/accessibility analysis."
         ),
-    hospital_filter: bool = typer.Option(
+    hospital_filter: bool = typer.Option( 
         True, 
         "--hospital_filter", 
         "-h_filter", 
         help="Remove Level 2 Hospital Filter." 
-        ),    
+        ),   
+    #put the hospital filter as a flag instead of in preprocessing bc wanted to visualize all hospitals sometimes 
     skip_projection: bool = typer.Option(
         False, 
         "--skip-projection", 
@@ -218,6 +219,7 @@ def main(
             logger.info(f"Starting Clustering with {n_clusters} clusters...")
             gdf_vars = gpd.read_file(census_output)
 
+            #checking cluster number justification
             find_optimal_k(
                 gdf_vars,
                 features = CLUSTERING_FEATURES,
@@ -225,6 +227,7 @@ def main(
                 max_k = 10 
             )
 
+            #K-means clustering - expliticly only want to use sociodemographic characteristics and not spatially constrained clustering
             gdf_clustered = apply_clustering(
                 gdf_vars,
                 features = CLUSTERING_FEATURES,
@@ -236,17 +239,19 @@ def main(
 
             logger.info(f"Clustered data saved to: {clustered_output}")
 
-            #comparing the scaled data to the original data for interpretation
+            #comparing the clustered data to the original data for interpretation
             RAW_FEATURES = [feat.replace('_scaled', '') for feat in CLUSTERING_FEATURES]
+            #putting the cluster column in the old gdf
             gdf_vars['cluster'] = gdf_clustered['cluster']
 
-            # print the output to characterize and define features
-            char_df = print_cluster_characteristics(gdf_vars, features = RAW_FEATURES)
-            zscore_df = print_defining_features(gdf_vars, features = RAW_FEATURES)
+            # print the output on the console to characterize and define features
+            print_cluster_characteristics(gdf_vars, features = RAW_FEATURES)
+            print_defining_features(gdf_vars, features = RAW_FEATURES)
 
-            #CLUSTER MAP
+            #CLUSTER MAP + boxplot
             logger.info("Generating cluster map...")
 
+            #did it like this so they can save in the same visualization
             fig = plt.figure(figsize=(14, 17)) 
             gs = fig.add_gridspec(2, 1, height_ratios=[3, 1.2]) 
             ax_map = fig.add_subplot(gs[0])
@@ -280,19 +285,23 @@ def main(
             # Image B: Clusters + Points
             logger.info("Generating cluster map with point overlays...")
 
+            #pulling maternity/emergency point data
             emergency_gdf = gpd.read_file(em_path) #405
             maternity_gdf = gpd.read_file(mat_path) #1741
+
             if hospital_filter:
                 emergency_gdf = emergency_gdf[emergency_gdf["level"] <= 2] #139
                 maternity_gdf = maternity_gdf[maternity_gdf["level"] <= 2] #115
             else:
                 logger.info("Skipping hospital filtering: Using all available points (including ambulance stations).")
-            
+
+            #again, doing it like this for the point cluster map to be saved with the boxplot
             fig2 = plt.figure(figsize=(14, 17)) 
             gs2 = fig2.add_gridspec(2, 1, height_ratios=[3, 1]) 
             ax_map2 = fig2.add_subplot(gs2[0])
             ax_chart2 = fig2.add_subplot(gs2[1])
 
+            #same map but with points for care centers
             create_cluster_map(
                 gdf = gdf_clustered,
                 basemap_gdf = gdf_vars,
@@ -327,46 +336,44 @@ def main(
             return  # Exit the function if the variables file is missing
 
     # 3. ESDA
-    # Analyzing patterns WITHIN each cluster
+    # Analyzing patterns globally - could be useful comparison against within cluster findings.
     if not skip_esda:
         logger.info("ESDA: Global Moran's and LISA analysis...")
             
         try:
             gdf_clustered = gpd.read_file(clustered_output)
 
-            target_col = "EMERGENCY_PER_CAPITA" #can be maternity or total  "MATERNITY_PER_CAPITA" / "TOTAL_PER_CAPITA"
-            target_col2 = "MATERNITY_PER_CAPITA"
-            target_col3 = "TOTAL_PER_CAPITA"
+            emergency_col = "EMERGENCY_PER_CAPITA" #can be maternity or total  "MATERNITY_PER_CAPITA" / "TOTAL_PER_CAPITA"
+            maternity_col = "MATERNITY_PER_CAPITA"
+            total_col = "TOTAL_PER_CAPITA"
                 
-            # B. Create Weights for the entire city
+            # Create weights
             # This ensures we find clusters of low-access regardless of socio-economic status
             weights = create_weights_matrices(gdf_clustered)
             queen_w = weights["Queen"]
-                #can y
+            #puts queen as a hard coded default for LISA, future work would be to be able to customixe it
                 
-            # C. Global Moran's I
+            # Global Moran's I
             # Tells us if health access is generally clustered or random across the city
-            moran_table_emergency = build_morans_table(gdf_clustered, weights, target_col) 
+            moran_table_emergency = build_morans_table(gdf_clustered, weights, emergency_col) 
             moran_table_emergency.to_csv(spatial_dir / "global_moran_emergency_results.csv", index=False)
 
-            moran_table_maternity = build_morans_table(gdf_clustered, weights, target_col2)
+            moran_table_maternity = build_morans_table(gdf_clustered, weights, maternity_col)
             moran_table_maternity.to_csv(spatial_dir / "global_moran_maternity_results.csv", index=False)
+            #this yielded insignificant results
             
-            moran_table_total = build_morans_table(gdf_clustered, weights, target_col3) 
+            moran_table_total = build_morans_table(gdf_clustered, weights, total_col) 
             moran_table_total.to_csv(spatial_dir / "global_moran_total_results.csv", index=False)  
 
-            # D. LISA (Local Indicators of Spatial Association)
-            # This identifies the actual "Coldspots" (Low-Low)
-            lisa_gdf, lisa_obj = compute_lisa(gdf_clustered, queen_w, target_col)
+            # LISA (Local Indicators of Spatial Association)
+            lisa_gdf = compute_lisa(gdf_clustered, queen_w, total_col) #for total per capita
             # Save the results. Use the GDF (lisa_gdf) for the file export
             lisa_output = spatial_dir / "global_lisa_results.geojson"
             lisa_gdf.to_file(lisa_output, driver="GeoJSON")
-            #NEED TO BRAINSTORM HOW TO DO THIS BETTER
-            #MAYBE INPUT FLAGS OR SOMETHING
             
             logger.info(f"Spatial analysis complete. Results saved to: {lisa_output}")
             
-            # Now call the visualization function
+            #Visualization
             plot_lisa(
                 gdf_lisa = lisa_gdf, 
                 output_path=viz_dir / f"lisa_overlay_{n_clusters}.png"
@@ -374,16 +381,13 @@ def main(
                         
         except Exception as e:
             logger.error(f"Spatial analysis failed: {e}")
-                #else:
-                #logger.error("Clustered file missing. Skipping spatial analysis.")
     else:
         logger.info("Skipping ESDA...")
 
     
 
 # 4. ACCESSIBILITY ANALYSIS
-    # RUNS USING VALHALLA - WE NEED TO ACTIVATE THAT USING DOCKER FIRST
-    # For future improvement: the user could choose only some of them using flags.
+    # RUNS USING VALHALLA - WE NEED TO ACTIVATE THAT USING DOCKER
     if not skip_accessibility:
         if not clustered_output.exists():
             logger.error("Clustered file missing. Run clustering first.")
@@ -552,7 +556,7 @@ def main(
 
                 logger.info("Generating scatter plots.")
 
-                # MAP: scatter - maternity travel time vs elderly population (for example)
+                # MAP: scatter - maternity travel time vs elderly population 
                 fig_scatter = plot_access_vs_socio(
                     gdf=gdf_access_gap,
                     travel_col = "time_maternity",
@@ -567,7 +571,7 @@ def main(
                     bbox_inches="tight", dpi=300
                 )
 
-                # MAP: scatter - emergency travel time vs elderly population (for example)
+                # MAP: scatter - emergency travel time vs elderly population 
                 fig_scatter = plot_access_vs_socio(
                     gdf=gdf_access_gap,
                     travel_col = "time_emergency",
@@ -579,6 +583,36 @@ def main(
                 )
                 fig_scatter.savefig(
                     project_root / "visualizations/scatter_emergency_vs_elderly.png",
+                    bbox_inches="tight", dpi=300
+                )
+
+                # MAP: scatter - maternity travel time vs % women 
+                fig_scatter = plot_access_vs_socio(
+                    gdf=gdf_access_gap,
+                    travel_col = "time_maternity",
+                    socio_col="PCT_WOMEN",
+                    district_col="NAZ_ORP",
+                    poi_type="maternity hospital",
+                    max_distance=gdf_access_gap["time_maternity"].max(),
+                    show_legend=show_legend,
+                )
+                fig_scatter.savefig(
+                    project_root / "visualizations/scatter_maternity_vs_women.png",
+                    bbox_inches="tight", dpi=300
+                )
+
+                # MAP: scatter - emergency travel time vs % women
+                fig_scatter = plot_access_vs_socio(
+                    gdf=gdf_access_gap,
+                    travel_col = "time_emergency",
+                    socio_col="PCT_WOMEN",
+                    district_col="NAZ_ORP",
+                    poi_type="emergency hospital",
+                    max_distance=gdf_access_gap["time_emergency"].max(),
+                    show_legend=show_legend,
+                )
+                fig_scatter.savefig(
+                    project_root / "visualizations/scatter_emergency_vs_women.png",
                     bbox_inches="tight", dpi=300
                 )
     else:
